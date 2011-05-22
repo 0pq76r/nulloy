@@ -34,8 +34,8 @@ static QStringList _identifiers;
 static NPlaybackEngineInterface *_playback = NULL;
 static NWaveformBuilderInterface *_waveform = NULL;
 
-static QString _playbackPrefer = "Gstreamer";
-static QString _wavefowmPrefer = "Gstreamer";
+static QString _playbackPrefer = "GStreamer";
+static QString _wavefowmPrefer = "GStreamer";
 
 static void _loadPlugins(QSettings *settings)
 {
@@ -74,6 +74,20 @@ static void _loadPlugins(QSettings *settings)
 	if (QDir(QCoreApplication::applicationDirPath()).dirName() == "bin")
 		pluginsDirList << "../share/nulloy/plugins";
 #endif
+
+#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+		QStringList subDirsList;
+		foreach (QString dirStr, pluginsDirList) {
+			QDir dir(dirStr);
+			if (dir.exists()) {
+				foreach (QString subDir, dir.entryList(QDir::Dirs))
+					subDirsList << dirStr + "/" + subDir;
+			}
+		}
+		_putenv(QString("PATH=" + pluginsDirList.join(";") + ";" +
+				subDirsList.join(";") + ";" + getenv("PATH")).toAscii());
+#endif
+
 	foreach (QString dirStr, pluginsDirList) {
 		QDir dir(dirStr);
 		if (dir.exists()) {
@@ -108,11 +122,11 @@ static void _loadPlugins(QSettings *settings)
 		QString interface = qobject_cast<NPluginInterface *>(objects.at(index))->interface();
 		if (interface != NPlaybackEngineInterface::INTERFACE()) {
 			QMessageBox::warning(NULL, QObject::tr("Plugin Interface Mismatch"),
-				_identifiers.at(index).section('/', 2) +
-				_identifiers.at(index).section('/', 1) + " plugin has a different version of " +
-				_identifiers.at(index).section('/', 1) + " interface.\n" +
-				"Internal version: " + NPlaybackEngineInterface::INTERFACE().section('/', 3) + "\n" +
-				"Plugin version:   " + _identifiers.at(index).section('/', 3),
+				_identifiers.at(index).section('/', 2, 2) + " " +
+				_identifiers.at(index).section('/', 1, 1) + " plugin has a different version of " +
+				_identifiers.at(index).section('/', 1, 1) + " interface.\n" +
+				"Internal version: " + NPlaybackEngineInterface::INTERFACE().section('/', 2, 2) + "\n" +
+				"Plugin version: " + _identifiers.at(index).section('/', 3, 3),
 				QMessageBox::Close);
 		}
 
@@ -130,11 +144,11 @@ static void _loadPlugins(QSettings *settings)
 		QString interface = qobject_cast<NPluginInterface *>(objects.at(index))->interface();
 		if (interface != NWaveformBuilderInterface::INTERFACE()) {
 			QMessageBox::warning(NULL, QObject::tr("Plugin Interface Mismatch"),
-				_identifiers.at(index).section('/', 2) +
-				_identifiers.at(index).section('/', 1) + " plugin has a different version of " +
-				_identifiers.at(index).section('/', 1) + " interface.\n" +
-				"Internal version: " + NWaveformBuilderInterface::INTERFACE().section('/', 3) + "\n" +
-				"Plugin version:   " + _identifiers.at(index).section('/', 3),
+				_identifiers.at(index).section('/', 2, 2) + " " +
+				_identifiers.at(index).section('/', 1, 1) + " plugin has a different version of " +
+				_identifiers.at(index).section('/', 1, 1) + " interface.\n" +
+				"Internal version: " + NWaveformBuilderInterface::INTERFACE().section('/', 2, 2) + "\n" +
+				"Plugin version: " + _identifiers.at(index).section('/', 3, 3),
 				QMessageBox::Close);
 		}
 
