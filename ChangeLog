@@ -1,0 +1,10 @@
+* 0.2, Thu May 26 2011
+- Global Shortcuts implemented
+- Checking for updates online
+- "Always On Top" context menu item
+
+* 0.1.1, Sun May 8 2011
+- Shipping GStreamer along with the Windows package
+
+* 0.1, Thu May 5 2011
+- Initial release

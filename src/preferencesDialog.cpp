@@ -35,12 +35,45 @@ NPreferencesDialog::NPreferencesDialog(QWidget *parent) : QDialog(parent)
 	setWindowTitle(QCoreApplication::applicationName() + " Preferences");
 }
 
+void NPreferencesDialog::initShortcuts()
+{
+	foreach (QWidget *widget, QApplication::topLevelWidgets()) {
+		NPlayer *player = qobject_cast<NPlayer *>(widget);
+		if (player) {
+			QList<NAction *> allActions = player->findChildren<NAction *>();
+			for (int i = 0; i < allActions.size(); ++i) {
+				NAction *action = allActions.at(i);
+				if (action->parent() == player && action->isGlobal())
+					m_globalActionList << action;
+			}
+		}
+	}
+}
+
+void NPreferencesDialog::show()
+{
+	ui.versionLabel->setText("");
+	QDialog::show();
+}
+
+void NPreferencesDialog::setVersionLabel(QString text)
+{
+	ui.versionLabel->setText(text);
+}
+
+void NPreferencesDialog::on_versionCheckButton_clicked()
+{
+	ui.versionLabel->setText("Checking...");
+	versionCheckOnline();
+}
+
 void NPreferencesDialog::loadSettings()
 {
 	ui.minimizeToTrayCheckBox->setChecked(settings()->value("GUI/MinimizeToTray", FALSE).toBool());
 	ui.restorePlaybackCheckBox->setChecked(settings()->value("RestorePlayback", TRUE).toBool());
 	ui.singleInstanseCheckBox->setChecked(settings()->value("SingleInstanse", FALSE).toBool());
 	ui.trayIconCheckBox->setChecked(settings()->value("GUI/TrayIcon", FALSE).toBool());
+	ui.versionCheckBox->setChecked(settings()->value("AutoCheckUpdates", TRUE).toBool());
 
 	// plugins
 	foreach (QString str, pluginIdentifiers(settings())) {
@@ -76,6 +109,14 @@ void NPreferencesDialog::loadSettings()
 	index = ui.skinComboBox->findData(settings()->value("GUI/Skin"));
 	if (index != -1)
 		ui.skinComboBox->setCurrentIndex(index);
+
+	// shortcuts
+	for (int i = 0; i < m_globalActionList.size(); ++i) {
+		QString strSeq = settings()->value("GlobalShortcuts/" + m_globalActionList.at(i)->objectName()).toString();
+		if (!strSeq.isEmpty())
+			m_globalActionList.at(i)->setShortcut(QKeySequence(strSeq));
+	}
+	ui.globalShortcutEditorWidget->init(m_globalActionList);
 }
 
 void NPreferencesDialog::saveSettings()
@@ -84,6 +125,7 @@ void NPreferencesDialog::saveSettings()
 	settings()->setValue("RestorePlayback", ui.restorePlaybackCheckBox->isChecked());
 	settings()->setValue("SingleInstanse", ui.singleInstanseCheckBox->isChecked());
 	settings()->setValue("GUI/TrayIcon", ui.trayIconCheckBox->isChecked());
+	settings()->setValue("AutoCheckUpdates", ui.versionCheckBox->isChecked());
 
 	// plugins
 	bool showPluginMessage = FALSE;
@@ -117,6 +159,20 @@ void NPreferencesDialog::saveSettings()
 	if (!message.isEmpty()) {
 		QMessageBox box(QMessageBox::Information, windowTitle(), message, QMessageBox::Close, this);
 		box.exec();
+	}
+
+	// shortcuts
+	ui.globalShortcutEditorWidget->applyShortcuts();
+	for (int i = 0; i < m_globalActionList.size(); ++i) {
+		QList<QKeySequence> shortcut = m_globalActionList.at(i)->shortcuts();
+		QStringList strSeqList;
+		foreach (QKeySequence seq, shortcut)
+			strSeqList << seq.toString();
+
+		if (!strSeqList.isEmpty())
+			settings()->setValue("GlobalShortcuts/" + m_globalActionList.at(i)->objectName(), strSeqList.join(", "));
+		else
+			settings()->remove("GlobalShortcuts/" + m_globalActionList.at(i)->objectName());
 	}
 
 	emit settingsChanged();

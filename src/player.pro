@@ -36,6 +36,11 @@ build_pass:CONFIG(static, static|shared){
 	DEFINES += _N_SHARED_BUILD_
 }
 
+
+include(version.pri)
+DEFINES += _N_VERSION_=\""\\\"$${VERSION}\\\""\"
+
+include(../3rdParty/qxt-0.6.1~reduced/src/gui/qxtglobalshortcut.pri)
 include(../3rdParty/qtsingleapplication-2.6.1/src/qtsingleapplication.pri)
 include(../3rdParty/qtiocompressor-2.3.1/src/qtiocompressor.pri)
 
@@ -66,7 +71,7 @@ unix {
 	target.path = $$prefix.path/bin
 
 	plugins.files = ../plugins/*
-	plugins.path = $$prefix.path/share/nulloy/plugins
+	plugins.path = $$prefix.path/lib/nulloy/plugins
 
 	skins.files = ../skins/*
 	skins.path = $$prefix.path/share/nulloy/skins

@@ -2,7 +2,7 @@ Name:          nulloy
 URL:           http://nulloy.com
 License:       GPLv3
 Summary:       Music player with a waveform progress bar
-Version:       0.1.2
+Version:       _N_VERS_
 Release:       1
 Source:        %{name}-%{version}.tar.gz
 %if 0%{?fedora_version} || 0%{?suse_version}
@@ -50,7 +50,7 @@ Requires: nulloy
 GStreamer backend for Nulloy.
 %files gstreamer
 %defattr(-,root,root)
-%{_datadir}/%{name}/plugins/lib*_gstreamer.so
+%{_libdir}/%{name}/plugins/lib*_gstreamer.so
 
 %package  phonon
 Summary:  Phonon backend for Nulloy
@@ -59,14 +59,7 @@ Requires: nulloy
 Phonon backend for Nulloy.
 %files phonon
 %defattr(-,root,root)
-%{_datadir}/%{name}/plugins/lib*_phonon.so
+%{_libdir}/%{name}/plugins/lib*_phonon.so
 
 %changelog
-* Fri May 13 2011 Sergey Vlasov <sergey@vlasov.me> 0.1.2-1
-- Added files for building in OBS
 
-* Sun May 8 2011 Sergey Vlasov <sergey@vlasov.me> 0.1.1-1
-- Shipping GStreamer along with the Windows package
-
-* Thu May 5 2011 Sergey Vlasov <sergey@vlasov.me> 0.1-1
-- Initial release
