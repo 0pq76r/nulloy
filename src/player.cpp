@@ -106,7 +106,7 @@ NPlayer::NPlayer()
 	prevAction->setGlobal(TRUE);
 	connect(prevAction, SIGNAL(triggered()), m_playlistWidget, SLOT(activatePrev()));
 
-	NAction *nextAction = new NAction(style()->standardIcon(QStyle::SP_MediaSkipBackward), tr("Next"), this);
+	NAction *nextAction = new NAction(style()->standardIcon(QStyle::SP_MediaSkipForward), tr("Next"), this);
 	nextAction->setObjectName("nextAction");
 	nextAction->setStatusTip(tr("Play next track in playlist"));
 	nextAction->setGlobal(TRUE);
@@ -138,6 +138,8 @@ NPlayer::NPlayer()
 	QMenu *trayIconMenu = new QMenu(this);
 	trayIconMenu->addAction(playAction);
 	trayIconMenu->addAction(stopAction);
+	trayIconMenu->addAction(prevAction);
+	trayIconMenu->addAction(nextAction);
 	trayIconMenu->addAction(preferencesAction);
 	trayIconMenu->addSeparator();
 	trayIconMenu->addAction(exitAction);
@@ -206,7 +208,11 @@ void NPlayer::restorePlaylist()
 	if (!playlistRowValues.isEmpty()) {
 		if (settings()->value("RestorePlayback").toBool()) {
 			m_playlistWidget->activateRow(playlistRowValues.at(0).toInt());
-			m_playbackEngine->setPosition(playlistRowValues.at(1).toFloat());
+			qreal pos = playlistRowValues.at(1).toFloat();
+			if (pos != 0 && pos != 1)
+				m_playbackEngine->setPosition(pos);
+			else
+				m_playbackEngine->stop();
 		} else {
 			m_playlistWidget->setCurrentRow(playlistRowValues.at(0).toInt());
 		}
