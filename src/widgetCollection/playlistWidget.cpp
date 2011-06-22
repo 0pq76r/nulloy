@@ -25,31 +25,44 @@ NPlaylistWidget::NPlaylistWidget(QWidget *parent) : QListWidget(parent)
 {
 	connect(this, SIGNAL(itemActivated(QListWidgetItem *)), this, SLOT(on_itemActivated(QListWidgetItem *)));
 
-	m_currentActivatedItem = NULL;
+	m_currentItem = NULL;
 }
 
 NPlaylistWidget::~NPlaylistWidget() {}
 
 void NPlaylistWidget::setCurrentItem(QListWidgetItem *item)
 {
+	QBrush b = item->foreground();
+	b.setColor(QPalette::Text);
+	item->setForeground(b);
+
 	QFont f = item->font();
 
-	if (m_currentActivatedItem) {
+	if (m_currentItem) {
 		f.setBold(FALSE);
-		m_currentActivatedItem->setFont(f);
+		m_currentItem->setFont(f);
 	}
 
 	f.setBold(TRUE);
 	item->setFont(f);
 
 	scrollToItem(item);
-	m_currentActivatedItem = item;
+	m_currentItem = item;
+
+	emit mediaSet(item->data(Qt::UserRole).toString());
+}
+
+void NPlaylistWidget::setCurrentFailed()
+{
+	QBrush b = m_currentItem->foreground();
+	b.setColor(QPalette().color(QPalette::Dark));
+	m_currentItem->setForeground(b);
 }
 
 int NPlaylistWidget::currentRow()
 {
-	if (m_currentActivatedItem)
-		return row(m_currentActivatedItem);
+	if (m_currentItem)
+		return row(m_currentItem);
 	else
 		return -1;
 }
@@ -73,8 +86,9 @@ void NPlaylistWidget::activateItem(QListWidgetItem *item)
 
 void NPlaylistWidget::on_itemActivated(QListWidgetItem *item)
 {
-	setCurrentItem(item);
-	emit itemActivated2(item->data(Qt::UserRole).toString());
+	if (m_currentItem != item)
+		setCurrentItem(item);
+	emit currentActivated();
 }
 
 QStringList NPlaylistWidget::mediaList()
@@ -95,7 +109,7 @@ void NPlaylistWidget::appendMediaList(const QStringList &pathList)
 void NPlaylistWidget::setMediaList(const QStringList &pathList)
 {
 	clear();
-	m_currentActivatedItem = NULL;
+	m_currentItem = NULL;
 	foreach (QString path, pathList)
 		addItem(createItemFromPath(path));
 }
@@ -119,12 +133,17 @@ void NPlaylistWidget::activateFirst()
 	activateItem(item(0));
 }
 
+void NPlaylistWidget::activateCurrent()
+{
+	activateItem(m_currentItem);
+}
+
 void NPlaylistWidget::rowsAboutToBeRemoved(const QModelIndex &parent, int start, int end)
 {
 	Q_UNUSED(parent);
 	for (int i = start; i < end + 1; ++i) {
-		if (item(i) == m_currentActivatedItem) {
-			m_currentActivatedItem = NULL;
+		if (item(i) == m_currentItem) {
+			m_currentItem = NULL;
 			break;
 		}
 	}

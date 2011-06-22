@@ -13,37 +13,35 @@
 **
 *********************************************************************/
 
-#ifndef N_PREFERENCES_DIALOG_H
-#define N_PREFERENCES_DIALOG_H
+#ifndef N_LOG_DIALOG_H
+#define N_LOG_DIALOG_H
 
 #include <QDialog>
-#include "ui_preferencesDialog.h"
+#include <QTextBrowser>
+#include <QMessageBox>
+#include <QCheckBox>
 
-class NPreferencesDialog : public QDialog
+class NLogDialog : public QDialog
 {
 	Q_OBJECT
 
 private:
-	Ui::PreferencesDialog ui;
-	QList<NAction *> m_globalActionList;
+	QTextBrowser *m_textBrowser;
+	QCheckBox *m_checkBox;
+	QString m_oldTitle;
+	QString m_text;
+
+	void closeEvent(QCloseEvent *event);
 
 public:
-	NPreferencesDialog(QWidget *parent = 0);
-	~NPreferencesDialog();
-	void initShortcuts();
+	NLogDialog(QWidget *parent = 0);
+	~NLogDialog();
 
 public slots:
-	void setVersionLabel(QString text);
-	void saveSettings();
-	void loadSettings();
+	void showMessage(QMessageBox::Icon icon, const QString &title, const QString &msg);
 
 private slots:
-	void on_versionCheckButton_clicked();
-	void showEvent(QShowEvent *event);
-
-signals:
-	void settingsChanged();
-	void versionCheckOnline();
+	void on_checkBox_stateChanged(int state);
 };
 
 #endif

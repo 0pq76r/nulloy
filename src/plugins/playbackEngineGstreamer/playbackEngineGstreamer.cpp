@@ -23,7 +23,7 @@ static void _on_eos(GstBus *bus, GstMessage *msg, gpointer userData)
 	Q_UNUSED(msg);
 
 	NPlaybackEngineGStreamer *obj = reinterpret_cast<NPlaybackEngineGStreamer *>(userData);
-	obj->emitFinished();
+	obj->_emitFinished();
 }
 
 static void _on_error(GstBus *bus, GstMessage *msg, gpointer userData)
@@ -37,7 +37,8 @@ static void _on_error(GstBus *bus, GstMessage *msg, gpointer userData)
 	g_free(debug);
 
 	NPlaybackEngineGStreamer *obj = reinterpret_cast<NPlaybackEngineGStreamer *>(userData);
-	obj->emitError(err->message);
+	obj->_emitError(err->message);
+	obj->_emitFailed();
 
 	g_error_free(err);
 }
@@ -101,12 +102,13 @@ void NPlaybackEngineGStreamer::setMedia(const QString &file)
 		return;
 
 	if (!QFile(file).exists()) {
-		emit message(QMessageBox::Warning, QObject::tr("Open File Error"), QObject::tr("No such file or directory: ") + file);
+		emit message(QMessageBox::Warning, file, "No such file or directory");
 		emit mediaChanged("");
+		emit _emitFailed();
 		return;
 	}
 
-	gchar *uri = g_filename_to_uri(file.toUtf8().constData(), NULL, NULL);
+	gchar *uri = g_filename_to_uri(QFileInfo(file).absoluteFilePath().toUtf8().constData(), NULL, NULL);
 	if (uri)
 		m_currentMedia = file;
 	g_object_set(m_playbin, "uri", uri, NULL);
@@ -264,15 +266,21 @@ void NPlaybackEngineGStreamer::checkStatus()
 	}
 }
 
-void NPlaybackEngineGStreamer::emitFinished()
+void NPlaybackEngineGStreamer::_emitFinished()
 {
 	stop();
 	emit finished();
 }
 
-void NPlaybackEngineGStreamer::emitError(QString error)
+void NPlaybackEngineGStreamer::_emitFailed()
 {
-	emit message(QMessageBox::Critical, QObject::tr("Playback Error"), m_currentMedia + ": " + error);
+	stop();
+	emit failed();
+}
+
+void NPlaybackEngineGStreamer::_emitError(QString error)
+{
+	emit message(QMessageBox::Critical, QFileInfo(m_currentMedia).absoluteFilePath(), error);
 }
 
 #ifndef _N_GSTREAMER_PLUGINS_BUILTIN_

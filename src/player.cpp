@@ -69,6 +69,10 @@ NPlayer::NPlayer()
 
 	m_playlistWidget = qFindChild<NPlaylistWidget *>(m_mainWindow, "playlistWidget");
 
+	m_logDialog = new NLogDialog(m_mainWindow);
+	connect(m_playbackEngine, SIGNAL(message(QMessageBox::Icon, const QString &, const QString &)),
+			m_logDialog, SLOT(showMessage(QMessageBox::Icon, const QString &, const QString &)));
+
 	// loading script
 	m_scriptEngine = new QScriptEngine(this);
 	QString scriptFileName(skinScriptFile(settings()));
@@ -167,6 +171,8 @@ NPlayer::NPlayer()
 
 	QMetaObject::connectSlotsByName(this);
 
+	m_mainWindow->setTitle("");
+
 	QStringList pathList;
 	if (QCoreApplication::arguments().size() > 1) {
 		for (int i = 1; i < QCoreApplication::arguments().size(); ++i) {
@@ -180,7 +186,6 @@ NPlayer::NPlayer()
 	else
 		restorePlaylist();
 
-	m_mainWindow->setTitle("");
 	m_mainWindow->show();
 	QResizeEvent e(m_mainWindow->size(), m_mainWindow->size());
 	QCoreApplication::sendEvent(m_mainWindow, &e);
@@ -208,12 +213,13 @@ void NPlayer::restorePlaylist()
 	QStringList playlistRowValues = settings()->value("PlaylistRow", QStringList()).toStringList();
 	if (!playlistRowValues.isEmpty()) {
 		if (settings()->value("RestorePlayback").toBool()) {
-			m_playlistWidget->activateRow(playlistRowValues.at(0).toInt());
 			qreal pos = playlistRowValues.at(1).toFloat();
-			if (pos != 0 && pos != 1)
+			if (pos != 0 && pos != 1) {
+				m_playlistWidget->activateRow(playlistRowValues.at(0).toInt());
 				m_playbackEngine->setPosition(pos);
-			else
-				m_playbackEngine->stop();
+			} else {
+				m_playlistWidget->setCurrentRow(playlistRowValues.at(0).toInt());
+			}
 		} else {
 			m_playlistWidget->setCurrentRow(playlistRowValues.at(0).toInt());
 		}
@@ -287,7 +293,8 @@ void NPlayer::versionCheckOnline()
 #endif
 
 	if (!suffix.isEmpty())
-		m_networkManager->get(QNetworkRequest(QUrl("http://nulloy.com/version_" + suffix)));
+		m_networkManager->get(QNetworkRequest(QUrl("http://" +
+								QCoreApplication::organizationDomain() + "/version_" + suffix)));
 }
 
 void NPlayer::on_networkManager_finished(QNetworkReply *reply)
@@ -303,7 +310,7 @@ void NPlayer::on_networkManager_finished(QNetworkReply *reply)
 				QCoreApplication::applicationName() + " Update",
 				"A newer version is available: " + versionOnline + "<br><br>" +
 				"<a href='http://" + QCoreApplication::organizationDomain() + "'>http://" +
-					QCoreApplication::organizationDomain() + "</a>");
+					QCoreApplication::organizationDomain() + "/download</a>");
 		}
 	}
 
@@ -356,12 +363,6 @@ void NPlayer::quit()
 	QCoreApplication::quit();
 }
 
-void NPlayer::on_playbackEngine_message(QMessageBox::Icon icon, const QString &title, const QString &msg)
-{
-	QMessageBox box(icon, title, msg, QMessageBox::Close, m_mainWindow);
-	box.exec();
-}
-
 void NPlayer::on_playbackEngine_mediaChanged(const QString &path)
 {
 	if (path.isEmpty())
@@ -389,7 +390,7 @@ void NPlayer::on_alwaysOnTopAction_toggled(bool checked)
 
 void NPlayer::showPreferencesDialog()
 {
-	m_preferencesDialog->show();
+	m_preferencesDialog->exec();
 }
 
 void NPlayer::showAboutMessageBox()
