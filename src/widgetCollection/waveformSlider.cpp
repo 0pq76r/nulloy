@@ -25,10 +25,12 @@ QColor main_border =	QColor("#000000");
 QColor wave_bg =		QColor("#4e9a06");
 QColor wave_border =	QColor("#8ae234");
 
-QColor progress_bg =	QColor(0, 128, 255);
+QColor progress_bg =	QColor("#0080ff");
+QColor paused_bg =		QColor("#ce8419");
 
 NWaveformSlider::NWaveformSlider(QWidget *parent) : QAbstractSlider(parent)
 {
+	m_waveBuilder = NULL;
 	m_bufImage.resize(7);
 
 	setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
@@ -48,11 +50,18 @@ void NWaveformSlider::setBuilder(NWaveformBuilderInterface *builder)
 	m_waveBuilder->setParent(this);
 }
 
+void NWaveformSlider::setPlayState(bool state)
+{
+	m_playState = state;
+	update();
+}
+
 void NWaveformSlider::reset()
 {
 	m_oldValue = -1;
 	m_oldIndex = -1;
 	m_oldBuildPos = -1;
+	m_playState = FALSE;
 	setEnabled(FALSE);
 }
 
@@ -60,6 +69,9 @@ NWaveformSlider::~NWaveformSlider() {}
 
 void NWaveformSlider::checkForUpdate()
 {
+	if (!m_waveBuilder)
+		return;
+
 	bool needsUpdate = FALSE;
 	if (m_oldValue != value() || m_oldSize != size())
 		needsUpdate = TRUE;
@@ -145,7 +157,10 @@ void NWaveformSlider::paintEvent(QPaintEvent *event)
 		painter.begin(&m_bufImage[3]);
 		// progress rectangle
 		painter.setPen(Qt::NoPen);
-		painter.setBrush(progress_bg);
+		if (m_playState)
+			painter.setBrush(progress_bg);
+		else
+			painter.setBrush(paused_bg);
 		painter.drawRect(rect().adjusted(0, 0, x - width(), 0));
 		painter.end();
 

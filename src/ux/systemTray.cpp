@@ -13,33 +13,37 @@
 **
 *********************************************************************/
 
-#include "rcDir.h"
-#include <QCoreApplication>
-#include <QStringList>
-#include <QDir>
+#include "systemTray.h"
 
-static bool _rcDir_init = FALSE;
-static QString _rcDir;
-
-QString rcDir()
+namespace NSystemTray
 {
-	if (!_rcDir_init) {
-#if !defined WIN32 && !defined _WINDOWS && !defined Q_WS_WIN
-		QDir parentDir(QCoreApplication::applicationDirPath());
-		if (parentDir.dirName() == "bin")
-			_rcDir = QDir::homePath() + "/.nulloy";
-		else
-			_rcDir = QCoreApplication::applicationDirPath();
-#else
-		_rcDir = QCoreApplication::applicationDirPath();
-#endif
-		QDir dir(_rcDir);
-		if (!dir.exists())
-			dir.mkdir(_rcDir);
+	QSystemTrayIcon *_trayIcon = NULL;
+}
 
-		_rcDir_init = TRUE;
-	}
-	return _rcDir;
+void NSystemTray::init(QObject *parent)
+{
+	_trayIcon = new QSystemTrayIcon(parent);
+	_trayIcon->setObjectName("trayIcon");
+}
+
+void NSystemTray::setContextMenu(QMenu *menu)
+{
+	_trayIcon->setContextMenu(menu);
+}
+
+void NSystemTray::setEnabled(bool enabled)
+{
+	_trayIcon->setVisible(enabled);
+}
+
+void NSystemTray::setIcon(const QIcon &icon)
+{
+	_trayIcon->setIcon(icon);
+}
+
+void NSystemTray::setToolTip(const QString &str)
+{
+	_trayIcon->setToolTip(str);
 }
 
 /* vim: set ts=4 sw=4: */

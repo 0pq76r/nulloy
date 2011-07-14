@@ -15,15 +15,26 @@
 
 #include "mainWindow.h"
 
+#include "core.h"
 #include "settings.h"
-#include "pluginInterface.h"
-#include "pluginLoader.h"
 #include "waveformSlider.h"
 #include "dropArea.h"
-#include "skinFileSystem.h"
-#include "rcDir.h"
 
+#ifndef _N_NO_SKINS_
+#include "skinFileSystem.h"
 #include <QUiLoader>
+#endif
+
+#ifndef _N_NO_PLUGINS_
+#include "pluginLoader.h"
+#else
+#include "waveformBuilderGstreamer.h"
+#endif
+
+#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#include "w7TaskBar.h"
+#endif
+
 #include <QLayout>
 #include <QIcon>
 
@@ -34,6 +45,7 @@ NMainWindow::~NMainWindow() {}
 
 void NMainWindow::init(const QString &uiFile)
 {
+#ifndef _N_NO_SKINS_
 	QUiLoader loader;
 	QFile formFile(uiFile);
 	formFile.open(QIODevice::ReadOnly);
@@ -47,9 +59,19 @@ void NMainWindow::init(const QString &uiFile)
 	setStyleSheet(form->styleSheet());
 
 	setSizeGripEnabled(TRUE);
+#else
+	Q_UNUSED(uiFile)
+    ui.setupUi(this);
+#endif
 
 	NWaveformSlider *waveformSlider = qFindChild<NWaveformSlider *>(this, "waveformSlider");
-	waveformSlider->setBuilder(waveformPlugin(settings()));
+#ifndef _N_NO_PLUGINS_
+	waveformSlider->setBuilder(NPluginLoader::waveformPlugin());
+#else
+	NWaveformBuilderInterface *builder = dynamic_cast<NWaveformBuilderInterface *>(new NWaveformBuilderGstreamer());
+	dynamic_cast<NPluginInterface *>(builder)->init();
+	waveformSlider->setBuilder(builder);
+#endif
 
 	// enabling dragging window from any point
 	QList<QWidget *> widgets = findChildren<QWidget *>();
@@ -61,7 +83,7 @@ void NMainWindow::init(const QString &uiFile)
 	iconList << "icon.";
 	QDir parentDir(QCoreApplication::applicationDirPath());
 	if (parentDir.dirName() == "bin") {
-		iconList << rcDir() + "/icon.";
+		iconList << NCore::rcDir() + "/icon.";
 		iconList << "../share/nulloy/icon.";
 	}
 #endif
@@ -94,11 +116,11 @@ void NMainWindow::toggleVisibility()
 
 void NMainWindow::loadSettings()
 {
-	QStringList posList = settings()->value("GUI/Position").toStringList();
+	QStringList posList = NSettings::value("GUI/Position").toStringList();
 	if (!posList.isEmpty())
 		move(posList.at(0).toInt(), posList.at(1).toInt());
 
-	QStringList sizeList = settings()->value("GUI/Size").toStringList();
+	QStringList sizeList = NSettings::value("GUI/Size").toStringList();
 	if (!sizeList.isEmpty())
 		resize(sizeList.at(0).toInt(), sizeList.at(1).toInt());
 	else
@@ -107,8 +129,8 @@ void NMainWindow::loadSettings()
 
 void NMainWindow::saveSettings()
 {
-	settings()->setValue("GUI/Position", QStringList() << QString::number(pos().x()) << QString::number(pos().y()));
-	settings()->setValue("GUI/Size", QStringList() << QString::number(width()) << QString::number(height()));
+	NSettings::setValue("GUI/Position", QStringList() << QString::number(pos().x()) << QString::number(pos().y()));
+	NSettings::setValue("GUI/Size", QStringList() << QString::number(width()) << QString::number(height()));
 }
 
 void NMainWindow::setTitle(QString title)
@@ -155,11 +177,31 @@ void NMainWindow::resizeEvent(QResizeEvent *event)
 	emit resized();
 }
 
+void NMainWindow::showEvent(QShowEvent *event)
+{
+	loadSettings();
+	QDialog::showEvent(event);
+}
+
+void NMainWindow::hideEvent(QHideEvent *event)
+{
+	saveSettings();
+	QDialog::hideEvent(event);
+}
+
 void NMainWindow::closeEvent(QCloseEvent *event)
 {
+	saveSettings();
 	QDialog::closeEvent(event);
 	emit closed();
 }
+
+#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+bool NMainWindow::winEvent(MSG *message, long *result)
+{
+	return NW7TaskBar::winEvent(message, result);
+}
+#endif
 
 void NMainWindow::minimize()
 {

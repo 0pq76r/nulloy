@@ -44,6 +44,7 @@ function Program(window, playbackEngine)
 	this.waveformSlider.maximum = 10000;
 
 	this.playbackEngine["playStateChanged(bool)"].connect(this, "updatePlayButtonIcon");
+	this.playbackEngine["playStateChanged(bool)"].connect(this.waveformSlider["setPlayState(bool)"]);
 	this.playbackEngine["mediaChanged(const QString &)"].connect(this.waveformSlider["drawFile(const QString &)"]);
 	this.playbackEngine["finished()"].connect(this.playlistWidget.activateNext);
 	this.playbackEngine["failed()"].connect(this, "on_failed");
@@ -57,7 +58,7 @@ function Program(window, playbackEngine)
 	this.playbackEngine["positionChanged(qreal)"].connect(this, "waveformSlide_setValue");
 
 	this.dropArea["filesDropped(const QStringList &)"].connect(this.playlistWidget["activateMediaList(const QStringList &)"]);
-	this.window.windowFlags = Qt.Window;
+	this.window.windowFlags = this.window.windowFlags | Qt.WindowMinimizeButtonHint;
 
 	//print("script loaded");
 }

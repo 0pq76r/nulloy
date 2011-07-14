@@ -17,7 +17,7 @@
 
 #include <QFile>
 #include <QDebug>
-#include "arguments.h"
+#include "core.h"
 
 static QMutex _mutex;
 
@@ -90,7 +90,7 @@ void NWaveformBuilderGstreamer::init()
 
 	int argc;
 	const char **argv;
-	c_args(&argc, &argv);
+	NCore::cArgs(&argc, &argv);
 	gst_init(&argc, (char ***)&argv);
 
 	m_playbin = NULL;
@@ -158,12 +158,16 @@ void NWaveformBuilderGstreamer::startFile(const QString &file)
 		return;
 	m_currentFile = file;
 
-	m_playbin = gst_parse_launch("uridecodebin name=w_uridecodebin ! fakesink name=w_sink", NULL);
+	m_playbin = gst_parse_launch("uridecodebin name=w_uridecodebin \
+								! audioconvert ! audio/x-raw-int, width=16, signed=true \
+								! fakesink name=w_sink", NULL);
 
 #if !defined WIN32 && !defined _WINDOWS && !defined Q_WS_WIN
 	GstBus *bus = gst_pipeline_get_bus(GST_PIPELINE(m_playbin));
 	gst_bus_add_signal_watch(bus);
+#if defined(QT_DEBUG) && !defined(QT_NO_DEBUG)
 	g_signal_connect(bus, "message::error", G_CALLBACK(_on_error), this);
+#endif
 	g_signal_connect(bus, "message::eos", G_CALLBACK(_on_eos), this);
 	gst_object_unref(bus);
 #endif
@@ -212,7 +216,9 @@ void NWaveformBuilderGstreamer::update()
 			_on_eos(bus, msg, this);
 			break;
 		case GST_MESSAGE_ERROR:
+#if defined(QT_DEBUG) && !defined(QT_NO_DEBUG)
 			_on_error(bus, msg, this);
+#endif
 			break;
 		default:
 			break;
@@ -223,7 +229,7 @@ void NWaveformBuilderGstreamer::update()
 }
 #endif
 
-#ifndef _N_GSTREAMER_PLUGINS_BUILTIN_
+#if !defined _N_GSTREAMER_PLUGINS_BUILTIN_ && !defined _N_NO_PLUGINS_
 Q_EXPORT_PLUGIN2(waveform_gstreamer, NWaveformBuilderGstreamer)
 #endif
 

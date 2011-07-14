@@ -13,12 +13,18 @@
 **
 *********************************************************************/
 
-#ifndef N_DIR_PROCESSOR_H
-#define N_DIR_PROCESSOR_H
+#ifndef N_CORE_H
+#define N_CORE_H
 
 #include <QStringList>
 
-QStringList dirListRecursive(QString path);
+namespace NCore
+{
+	void cArgs(int *argc, const char ***argv);
+	QString applicationBinaryName();
+	QString rcDir();
+	QStringList dirListRecursive(const QString &path);
+}
 
 #endif
 

@@ -16,9 +16,16 @@
 #include "preferencesDialog.h"
 
 #include "settings.h"
-#include "pluginLoader.h"
-#include "skinLoader.h"
 #include "player.h"
+
+#ifndef _N_NO_SKINS_
+#include "skinLoader.h"
+#endif
+
+#ifndef _N_NO_PLUGINS_
+#include "pluginLoader.h"
+#endif
+
 #include <QMessageBox>
 #include <QPushButton>
 
@@ -29,33 +36,28 @@ NPreferencesDialog::~NPreferencesDialog() {}
 NPreferencesDialog::NPreferencesDialog(QWidget *parent) : QDialog(parent)
 {
 	ui.setupUi(this);
+
+	setObjectName("preferencesDialog");
+
 	connect(ui.buttonBox->button(QDialogButtonBox::Apply), SIGNAL(clicked()), this, SLOT(saveSettings()));
 	connect(this, SIGNAL(accepted()), this, SLOT(saveSettings()));
 
 	setWindowTitle(QCoreApplication::applicationName() + " Preferences");
-}
 
-void NPreferencesDialog::initShortcuts()
-{
-	foreach (QWidget *widget, QApplication::topLevelWidgets()) {
-		NPlayer *player = qobject_cast<NPlayer *>(widget);
-		if (player) {
-			QList<NAction *> allActions = player->findChildren<NAction *>();
-			for (int i = 0; i < allActions.size(); ++i) {
-				NAction *action = allActions.at(i);
-				if (action->parent() == player && action->isGlobal())
-					m_globalActionList << action;
-			}
-		}
-	}
+#ifdef _N_NO_SKINS_
+	ui.skinLabel->hide();
+	ui.skinComboBox->hide();
+#endif
+
+#ifdef _N_NO_PLUGINS_
+	ui.tabWidget->removeTab(ui.tabWidget->indexOf(ui.pluginsTab));
+#endif
 }
 
 void NPreferencesDialog::showEvent(QShowEvent *event)
 {
-	Q_UNUSED(event);
-
-	ui.versionLabel->setText("");
-	ui.displayLogDialogCheckBox->setChecked(settings()->value("DisplayLogDialog").toBool());
+	loadSettings();
+	QDialog::showEvent(event);
 }
 
 void NPreferencesDialog::setVersionLabel(QString text)
@@ -66,20 +68,25 @@ void NPreferencesDialog::setVersionLabel(QString text)
 void NPreferencesDialog::on_versionCheckButton_clicked()
 {
 	ui.versionLabel->setText("Checking...");
-	versionCheckOnline();
+	emit versionOnlineRequested();
 }
 
 void NPreferencesDialog::loadSettings()
 {
-	ui.minimizeToTrayCheckBox->setChecked(settings()->value("GUI/MinimizeToTray", FALSE).toBool());
-	ui.restorePlaybackCheckBox->setChecked(settings()->value("RestorePlayback", TRUE).toBool());
-	ui.singleInstanseCheckBox->setChecked(settings()->value("SingleInstanse", FALSE).toBool());
-	ui.trayIconCheckBox->setChecked(settings()->value("GUI/TrayIcon", FALSE).toBool());
-	ui.versionCheckBox->setChecked(settings()->value("AutoCheckUpdates", TRUE).toBool());
-	ui.displayLogDialogCheckBox->setChecked(settings()->value("DisplayLogDialog", TRUE).toBool());
+	ui.versionLabel->setText("");
 
+	ui.minimizeToTrayCheckBox->setChecked(NSettings::value("GUI/MinimizeToTray").toBool());
+	ui.restorePlaybackCheckBox->setChecked(NSettings::value("RestorePlayback").toBool());
+	ui.multipleInstansesCheckBox->setChecked(!NSettings::value("SingleInstanse").toBool());
+	ui.trayIconCheckBox->setChecked(NSettings::value("GUI/TrayIcon").toBool());
+	ui.versionCheckBox->setChecked(NSettings::value("AutoCheckUpdates").toBool());
+	ui.displayLogDialogCheckBox->setChecked(NSettings::value("DisplayLogDialog").toBool());
+
+	int index;
+
+#ifndef _N_NO_PLUGINS_
 	// plugins
-	foreach (QString str, pluginIdentifiers(settings())) {
+	foreach (QString str, NPluginLoader::pluginIdentifiers()) {
 		QString id = str.section('/', 2);
 		if (str.split('/').at(1) == "Playback")
 			ui.playbackComboBox->addItem(id.replace('/', ' '), id);
@@ -92,16 +99,17 @@ void NPreferencesDialog::loadSettings()
 	if (ui.waveformComboBox->count() == 1)
 		ui.waveformComboBox->setEnabled(FALSE);
 
-	int index;
-	index = ui.playbackComboBox->findData(settings()->value("Playback"));
+	index = ui.playbackComboBox->findData(NSettings::value("Playback"));
 	if (index != -1)
 		ui.playbackComboBox->setCurrentIndex(index);
-	index = ui.playbackComboBox->findData(settings()->value("Waveform"));
+	index = ui.waveformComboBox->findData(NSettings::value("Waveform"));
 	if (index != -1)
 		ui.waveformComboBox->setCurrentIndex(index);
+#endif
 
+#ifndef _N_NO_SKINS_
 	// skins
-	foreach (QString str, skinIdentifiers(settings())) {
+	foreach (QString str, NSkinLoader::skinIdentifiers()) {
 		QString id = str.section('/', 2);
 		ui.skinComboBox->addItem(id.replace('/', ' '), id);
 	}
@@ -109,47 +117,48 @@ void NPreferencesDialog::loadSettings()
 	if (ui.skinComboBox->count() == 1)
 		ui.skinComboBox->setEnabled(FALSE);
 
-	index = ui.skinComboBox->findData(settings()->value("GUI/Skin"));
+	index = ui.skinComboBox->findData(NSettings::value("GUI/Skin"));
 	if (index != -1)
 		ui.skinComboBox->setCurrentIndex(index);
+#endif
 
-	// shortcuts
-	for (int i = 0; i < m_globalActionList.size(); ++i) {
-		QString strSeq = settings()->value("GlobalShortcuts/" + m_globalActionList.at(i)->objectName()).toString();
-		if (!strSeq.isEmpty())
-			m_globalActionList.at(i)->setShortcut(QKeySequence(strSeq));
-	}
-	ui.globalShortcutEditorWidget->init(m_globalActionList);
+	NSettings::loadShortcuts();
+	ui.globalShortcutEditorWidget->init(NSettings::shortcuts());
 }
 
 void NPreferencesDialog::saveSettings()
 {
-	settings()->setValue("GUI/MinimizeToTray", ui.minimizeToTrayCheckBox->isChecked());
-	settings()->setValue("RestorePlayback", ui.restorePlaybackCheckBox->isChecked());
-	settings()->setValue("SingleInstanse", ui.singleInstanseCheckBox->isChecked());
-	settings()->setValue("GUI/TrayIcon", ui.trayIconCheckBox->isChecked());
-	settings()->setValue("AutoCheckUpdates", ui.versionCheckBox->isChecked());
-	settings()->setValue("DisplayLogDialog", ui.displayLogDialogCheckBox->isChecked());
+	NSettings::setValue("GUI/MinimizeToTray", ui.minimizeToTrayCheckBox->isChecked());
+	NSettings::setValue("RestorePlayback", ui.restorePlaybackCheckBox->isChecked());
+	NSettings::setValue("SingleInstanse", !ui.multipleInstansesCheckBox->isChecked());
+	NSettings::setValue("GUI/TrayIcon", ui.trayIconCheckBox->isChecked());
+	NSettings::setValue("AutoCheckUpdates", ui.versionCheckBox->isChecked());
+	NSettings::setValue("DisplayLogDialog", ui.displayLogDialogCheckBox->isChecked());
 
-	// plugins
 	bool showPluginMessage = FALSE;
+	bool showSkinMessage = FALSE;
+
+#ifndef _N_NO_PLUGINS_
+	// plugins
 	QVariant playbackVariant = ui.playbackComboBox->itemData(ui.playbackComboBox->currentIndex());
-	if (settings()->value("Playback").isValid() && playbackVariant != settings()->value("Playback"))
+	if (NSettings::value("Playback").isValid() && playbackVariant != NSettings::value("Playback"))
 		showPluginMessage = TRUE;
 	QVariant waveformVariant = ui.waveformComboBox->itemData(ui.waveformComboBox->currentIndex());
-	if (settings()->value("Waveform").isValid() && waveformVariant != settings()->value("Waveform"))
+	if (NSettings::value("Waveform").isValid() && waveformVariant != NSettings::value("Waveform"))
 		showPluginMessage = TRUE;
 
-	settings()->setValue("Playback", playbackVariant);
-	settings()->setValue("Waveform", waveformVariant);
+	NSettings::setValue("Playback", playbackVariant);
+	NSettings::setValue("Waveform", waveformVariant);
+#endif
 
+#ifndef _N_NO_SKINS_
 	// skins
-	bool showSkinMessage = FALSE;
 	QVariant skinVariant = ui.skinComboBox->itemData(ui.skinComboBox->currentIndex());
-	if (settings()->value("GUI/Skin").isValid() && skinVariant != settings()->value("GUI/Skin"))
+	if (NSettings::value("GUI/Skin").isValid() && skinVariant != NSettings::value("GUI/Skin"))
 		showSkinMessage = TRUE;
 
-	settings()->setValue("GUI/Skin", skinVariant);
+	NSettings::setValue("GUI/Skin", skinVariant);
+#endif
 
 	QString message;
 	if (showPluginMessage && showSkinMessage) {
@@ -165,20 +174,8 @@ void NPreferencesDialog::saveSettings()
 		box.exec();
 	}
 
-	// shortcuts
 	ui.globalShortcutEditorWidget->applyShortcuts();
-	for (int i = 0; i < m_globalActionList.size(); ++i) {
-		QList<QKeySequence> shortcut = m_globalActionList.at(i)->shortcuts();
-		QStringList strSeqList;
-		foreach (QKeySequence seq, shortcut)
-			strSeqList << seq.toString();
-
-		if (!strSeqList.isEmpty())
-			settings()->setValue("GlobalShortcuts/" + m_globalActionList.at(i)->objectName(), strSeqList.join(", "));
-		else
-			settings()->remove("GlobalShortcuts/" + m_globalActionList.at(i)->objectName());
-	}
-
+	NSettings::saveShortcuts();
 	emit settingsChanged();
 }
 

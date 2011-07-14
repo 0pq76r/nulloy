@@ -13,31 +13,21 @@
 **
 *********************************************************************/
 
-#include "arguments.h"
-#include <QtCore>
+#ifndef N_SYSTEM_TRAY_H
+#define N_SYSTEM_TRAY_H
 
-static QList<QByteArray> _argList;
-static QVector<const char *> _argVector;
-static bool _init = FALSE;
+#include <QSystemTrayIcon>
 
-void c_args(int *argc, const char ***argv)
+namespace NSystemTray
 {
-	if (!_init) {
-		foreach (const QString &s, QCoreApplication::arguments()) {
-			_argList << s.toLatin1();
-			_argVector << _argList.last().constData();
-		}
-		_init = TRUE;
-	}
+	void init(QObject *parent = 0);
 
-	*argv = &_argVector[0];
-	*argc = QCoreApplication::arguments().size();
+	void setContextMenu(QMenu *menu);
+	void setEnabled(bool enabled);
+	void setIcon(const QIcon &icon);
+	void setToolTip(const QString &str);
 }
 
-QString applicationBinaryName()
-{
-	return QFileInfo(QCoreApplication::arguments().first()).completeBaseName();
-}
+#endif
 
 /* vim: set ts=4 sw=4: */
-

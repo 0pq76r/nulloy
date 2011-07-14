@@ -15,8 +15,9 @@
 
 #include "skinLoader.h"
 
+#include "core.h"
+#include "settings.h"
 #include "skinFileSystem.h"
-#include "rcDir.h"
 #include <qtiocompressor.h>
 
 #include <QBuffer>
@@ -26,15 +27,21 @@
 
 #include <QDebug>
 
-static bool _init = FALSE;
-static QMap<int, QString> _identifiers;
-static QString _uiFormFile;
-static QString _scriptFile;
+namespace NSkinLoader
+{
+	bool _init = FALSE;
+	QMap<int, QString> _identifiers;
+	QString _uiFormFile;
+	QString _scriptFile;
 
-static QString _skinPrefer = "Silver";
-static QString _skinSuffix= "nzs";
+	QString _skinPrefer = "Silver";
+	QString _skinSuffix= "nzs";
 
-static bool _nextFile(QFile &zipFile, QString &fileName, QByteArray &data)
+	bool _nextFile(QFile &zipFile, QString &fileName, QByteArray &data);
+	void _loadSkins();
+}
+
+bool NSkinLoader::_nextFile(QFile &zipFile, QString &fileName, QByteArray &data)
 {
 	quint32 signature, crc, compSize, unCompSize;
 	quint16 extractVersion, bitFlag, compMethod, modTime, modDate;
@@ -71,7 +78,7 @@ static bool _nextFile(QFile &zipFile, QString &fileName, QByteArray &data)
 	return TRUE;
 }
 
-static void _loadSkins(QSettings *settings)
+void NSkinLoader::_loadSkins()
 {
 	if (_init)
 		return;
@@ -80,8 +87,8 @@ static void _loadSkins(QSettings *settings)
 	QStringList skinsDirList;
 	skinsDirList << ":skins" << "skins";
 #if !defined WIN32 && !defined _WINDOWS && !defined Q_WS_WIN
-	if (rcDir() != QCoreApplication::applicationDirPath())
-		skinsDirList << rcDir() + "/skins";
+	if (NCore::rcDir() != QCoreApplication::applicationDirPath())
+		skinsDirList << NCore::rcDir() + "/skins";
 	if (QDir(QCoreApplication::applicationDirPath()).dirName() == "bin")
 		skinsDirList << "../share/nulloy/skins";
 #endif
@@ -139,10 +146,10 @@ static void _loadSkins(QSettings *settings)
 		_identifiers.insert(i, id);
 	}
 
-	QString skinStr = settings->value("GUI/Skin").toString();
+	QString skinStr = NSettings::value("GUI/Skin").toString();
 	QStringList values = _identifiers.values();
 	int index;
-	index = values.indexOf(QRegExp("Nulloy/Skin/" + skinStr));
+	index = values.indexOf("Nulloy/Skin/" + skinStr);
 	if (index == -1)
 		index = values.indexOf(QRegExp("Nulloy/Skin/" + _skinPrefer + ".*"));
 	if (index == -1)
@@ -197,24 +204,24 @@ static void _loadSkins(QSettings *settings)
 		}
 	}
 
-	settings->setValue("GUI/Skin", _identifiers.value(index).section('/', 2));
+	NSettings::setValue("GUI/Skin", _identifiers.value(index).section('/', 2));
 }
 
-QStringList skinIdentifiers(QSettings *settings)
+QStringList NSkinLoader::skinIdentifiers()
 {
-	_loadSkins(settings);
+	_loadSkins();
 	return _identifiers.values();
 }
 
-QString skinUiFormFile(QSettings *settings)
+QString NSkinLoader::skinUiFormFile()
 {
-	_loadSkins(settings);
+	_loadSkins();
 	return _uiFormFile;
 }
 
-QString skinScriptFile(QSettings *settings)
+QString NSkinLoader::skinScriptFile()
 {
-	_loadSkins(settings);
+	_loadSkins();
 	return _scriptFile;
 }
 

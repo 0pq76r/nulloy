@@ -25,25 +25,23 @@ class NPreferencesDialog : public QDialog
 
 private:
 	Ui::PreferencesDialog ui;
-	QList<NAction *> m_globalActionList;
+	void showEvent(QShowEvent *event);
 
 public:
 	NPreferencesDialog(QWidget *parent = 0);
 	~NPreferencesDialog();
-	void initShortcuts();
 
 public slots:
 	void setVersionLabel(QString text);
-	void saveSettings();
-	void loadSettings();
 
 private slots:
+	void loadSettings();
+	void saveSettings();
 	void on_versionCheckButton_clicked();
-	void showEvent(QShowEvent *event);
 
 signals:
 	void settingsChanged();
-	void versionCheckOnline();
+	void versionOnlineRequested();
 };
 
 #endif

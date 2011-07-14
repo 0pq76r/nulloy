@@ -22,8 +22,7 @@
 #include "playlistWidget.h"
 #include "mainWindow.h"
 #include "logDialog.h"
-#include <QSystemTrayIcon>
-#include <QMenu>
+
 #include <QtScript>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -37,7 +36,6 @@ private:
 	NMainWindow *m_mainWindow;
 	NPreferencesDialog *m_preferencesDialog;
 	NPlaybackEngineInterface *m_playbackEngine;
-	QSystemTrayIcon *m_trayIcon;
 	QMenu *m_contextMenu;
 	NPlaylistWidget *m_playlistWidget;
 	NLogDialog *m_logDialog;
@@ -50,21 +48,23 @@ public:
 	QString about();
 
 private slots:
-	void restorePlaylist();
-	void savePlaylist();
 	void loadSettings();
 	void saveSettings();
+
+	void restorePlaylist();
+	void savePlaylist();
+
 	void preferencesDialogSettingsChanged();
 	void on_trayIcon_activated(QSystemTrayIcon::ActivationReason reason);
 	void mainWindowClosed();
 	void on_playbackEngine_mediaChanged(const QString &path);
+	void on_playbackEngine_playStateChanged(bool playState);
 	void on_alwaysOnTopAction_toggled(bool checked);
-	void versionCheckOnline();
+	void versionOnlineFetch();
 	void on_networkManager_finished(QNetworkReply *reply);
 
 public slots:
 	void quit();
-	void showPreferencesDialog();
 	void showAboutMessageBox();
 	void showFileDialog();
 	void showContextMenu(QPoint pos);

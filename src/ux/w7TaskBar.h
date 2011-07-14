@@ -13,28 +13,45 @@
 **
 *********************************************************************/
 
-#include "dirProcessor.h"
-#include <QFileInfo>
-#include <QDir>
+#ifndef N_W7_TASK_BAR_H
+#define N_W7_TASK_BAR_H
 
-#include <QDebug>
+#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
 
-static QStringList _processPath(QString path)
+#include <QWidget>
+
+class NW7TaskBar : public QObject
 {
-	QStringList list;
-	if (QFileInfo(path).isDir()) {
-		QStringList entryList = QDir(path).entryList(QDir::AllEntries | QDir::NoDotAndDotDot);
-		foreach (QString f, entryList)
-			list << _processPath(path + "/" + f);
-	} else {
-		list << path;
-	}
-	return list;
-}
+	Q_OBJECT
 
-QStringList dirListRecursive(QString path)
-{
-	return _processPath(path);
-}
+private:
+	static NW7TaskBar *m_instance;
+
+	NW7TaskBar(QObject *parent = 0);
+	~NW7TaskBar();
+
+public:
+	enum State {
+		NoProgress,
+		Indeterminate,
+		Normal,
+		Error,
+		Paused
+	};
+
+	static NW7TaskBar* instance();
+	static void init(QObject *parent);
+	static void setWindow(QWidget *window);
+	static bool winEvent(MSG *message, long *result);
+	static void setOverlayIcon(const QIcon &icon, const QString &text);
+
+public slots:
+	void setProgress(qreal val);
+	void setState(State state);
+};
+
+#endif
+
+#endif
 
 /* vim: set ts=4 sw=4: */
