@@ -24,16 +24,23 @@
 class NPlaybackEngineInterface : public QObject
 {
 public:
+	enum State {
+		Stopped = 0,
+		Playing = 1,
+		Paused = 2
+	};
+
 	NPlaybackEngineInterface(QObject *parent = 0) : QObject(parent) {}
 	virtual ~NPlaybackEngineInterface() {}
 
 	Q_INVOKABLE virtual bool hasMedia() = 0;
 	Q_INVOKABLE virtual QString currentMedia() = 0;
+	Q_INVOKABLE virtual int state() = 0;
 
 	Q_INVOKABLE virtual qreal volume() = 0;
 	Q_INVOKABLE virtual qreal position() = 0;
 
-	static QString INTERFACE() { return PLAYBACK_INTERFACE; }
+	static QString interface() { return PLAYBACK_INTERFACE; }
 
 public slots:
 	Q_INVOKABLE virtual void setMedia(const QString &file) = 0;
@@ -51,7 +58,7 @@ signals:
 	virtual void mediaChanged(const QString &file) = 0;
 	virtual void finished() = 0;
 	virtual void failed() = 0;
-	virtual void playStateChanged(bool) = 0;
+	virtual void stateChanged(int state) = 0;
 };
 
 Q_DECLARE_INTERFACE(NPlaybackEngineInterface, PLAYBACK_INTERFACE)

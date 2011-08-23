@@ -16,6 +16,7 @@
 #ifndef N_PLAYER_H
 #define N_PLAYER_H
 
+#include "settings.h"
 #include "playbackEngineInterface.h"
 #include "waveformSlider.h"
 #include "preferencesDialog.h"
@@ -32,6 +33,7 @@ class NPlayer : public QWidget
 	Q_OBJECT
 
 private:
+	NSettings *m_settings;
 	QScriptEngine *m_scriptEngine;
 	NMainWindow *m_mainWindow;
 	NPreferencesDialog *m_preferencesDialog;
@@ -58,10 +60,12 @@ private slots:
 	void on_trayIcon_activated(QSystemTrayIcon::ActivationReason reason);
 	void mainWindowClosed();
 	void on_playbackEngine_mediaChanged(const QString &path);
-	void on_playbackEngine_playStateChanged(bool playState);
+	void on_playbackEngine_stateChanged(int state);
 	void on_alwaysOnTopAction_toggled(bool checked);
+	void on_whilePlayingOnTopAction_toggled(bool checked);
 	void versionOnlineFetch();
 	void on_networkManager_finished(QNetworkReply *reply);
+	void loadNextActionTriggered();
 
 public slots:
 	void quit();

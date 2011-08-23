@@ -15,6 +15,7 @@
 
 #include "playlistWidget.h"
 
+#include "settings.h"
 #include "core.h"
 #include <QFileInfo>
 #include <QtGui>
@@ -142,14 +143,14 @@ void NPlaylistWidget::setMediaListFromPlaylist(const QString &path)
 	}
 }
 
-void NPlaylistWidget::writePlaylist(const QString &path)
+void NPlaylistWidget::writePlaylist(const QString &file)
 {
-	QFile playlist(path);
+	QFile playlist(file);
 	if (playlist.open(QFile::WriteOnly | QFile::Truncate)) {
 		QTextStream out(&playlist);
 		out << "#EXTM3U\n";
 
-		QDir dir = QFileInfo(path).absoluteDir();
+		QDir dir(QFileInfo(file).canonicalPath());
 
 		for(int i = 0; i < count(); ++i) {
 			float time = 0;
@@ -157,11 +158,9 @@ void NPlaylistWidget::writePlaylist(const QString &path)
 				time = -1;
 			if (time != 0)
 				out << "#NULLOY:" << time << "\n";
-
-			QString file = dir.relativeFilePath(item(i)->data(NPlaylistItem::PathRole).toString());
+			QString itemPath = item(i)->data(NPlaylistItem::PathRole).toString();
+			QString file = dir.relativeFilePath(QFileInfo(itemPath).canonicalFilePath());
 			out << "#EXTINF:-1, " << QFileInfo(file).fileName() << "\n";
-			if (file.startsWith("../"))
-				file = QFileInfo(file).absoluteFilePath();
 			out << file << "\n";
 		}
 		playlist.close();
@@ -171,8 +170,19 @@ void NPlaylistWidget::writePlaylist(const QString &path)
 void NPlaylistWidget::activateNext()
 {
 	int row = currentRow();
-	if (row < count() - 1)
+	if (row < count() - 1) {
 		activateItem(item(row + 1));
+	} else if (NSettings::instance()->value("LoadNext").toBool()) {
+		QDir::SortFlag flag = (QDir::SortFlag)NSettings::instance()->value("LoadNextSort").toInt();
+		QString file = m_currentItem->data(NPlaylistItem::PathRole).toString();
+		QString path = QFileInfo(file).path();
+		QStringList entryList = QDir(path).entryList(QDir::Files | QDir::NoDotAndDotDot, flag);
+		int index = entryList.indexOf(QFileInfo(file).fileName());
+		if (index != -1 && entryList.size() > index + 1) {
+			addItem(createItemFromPath(path + "/" + entryList.at(index + 1)));
+			activateItem(item(row + 1));
+		}
+	}
 }
 
 void NPlaylistWidget::activatePrev()
@@ -189,7 +199,9 @@ void NPlaylistWidget::activateFirst()
 
 void NPlaylistWidget::activateCurrent()
 {
-	activateItem(m_currentItem);
+	if (m_currentItem)
+		activateItem(m_currentItem);
+	else activateFirst();
 }
 
 void NPlaylistWidget::rowsAboutToBeRemoved(const QModelIndex &parent, int start, int end)

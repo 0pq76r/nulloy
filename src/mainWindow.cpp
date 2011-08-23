@@ -33,6 +33,7 @@
 
 #if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
 #include "w7TaskBar.h"
+#include <windows.h>
 #endif
 
 #include <QLayout>
@@ -116,11 +117,11 @@ void NMainWindow::toggleVisibility()
 
 void NMainWindow::loadSettings()
 {
-	QStringList posList = NSettings::value("GUI/Position").toStringList();
+	QStringList posList = NSettings::instance()->value("GUI/Position").toStringList();
 	if (!posList.isEmpty())
 		move(posList.at(0).toInt(), posList.at(1).toInt());
 
-	QStringList sizeList = NSettings::value("GUI/Size").toStringList();
+	QStringList sizeList = NSettings::instance()->value("GUI/Size").toStringList();
 	if (!sizeList.isEmpty())
 		resize(sizeList.at(0).toInt(), sizeList.at(1).toInt());
 	else
@@ -129,8 +130,8 @@ void NMainWindow::loadSettings()
 
 void NMainWindow::saveSettings()
 {
-	NSettings::setValue("GUI/Position", QStringList() << QString::number(pos().x()) << QString::number(pos().y()));
-	NSettings::setValue("GUI/Size", QStringList() << QString::number(width()) << QString::number(height()));
+	NSettings::instance()->setValue("GUI/Position", QStringList() << QString::number(pos().x()) << QString::number(pos().y()));
+	NSettings::instance()->setValue("GUI/Size", QStringList() << QString::number(width()) << QString::number(height()));
 }
 
 void NMainWindow::setTitle(QString title)
@@ -206,6 +207,28 @@ bool NMainWindow::winEvent(MSG *message, long *result)
 void NMainWindow::minimize()
 {
 	setWindowState(Qt::WindowMinimized);
+}
+
+void NMainWindow::setOnTop(bool onTop)
+{
+#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+	if (onTop)
+		SetWindowPos(this->winId(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+	else
+		SetWindowPos(this->winId(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+#else
+	Qt::WindowFlags flags = windowFlags();
+	if (onTop)
+		flags |= Qt::WindowStaysOnTopHint;
+	else
+		flags &= ~Qt::WindowStaysOnTopHint;
+	setWindowFlags(flags);
+	show();
+#endif
+
+#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+	NW7TaskBar::setWindow(this);
+#endif
 }
 
 /* vim: set ts=4 sw=4: */

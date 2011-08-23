@@ -34,6 +34,7 @@ static void _on_eos(GstBus *bus, GstMessage *msg, gpointer userData)
 	obj->stop();
 }
 
+#if defined(QT_DEBUG) && !defined(QT_NO_DEBUG)
 static void _on_error(GstBus *bus, GstMessage *msg, gpointer userData)
 {
 	Q_UNUSED(bus);
@@ -48,6 +49,7 @@ static void _on_error(GstBus *bus, GstMessage *msg, gpointer userData)
 	qWarning() << "WaveformBuilder :: error ::" << err->message;
 	g_error_free(err);
 }
+#endif
 
 static void _handleBuffer(GstPad *pad, GstBuffer *buffer, gpointer userData)
 {
@@ -135,24 +137,11 @@ void NWaveformBuilderGstreamer::stop()
 	}
 }
 
-void NWaveformBuilderGstreamer::start()
-{
-	reset();
-	QThread::start();
-
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
-	if (!m_timer->isActive())
-		m_timer->start(100);
-#endif
-
-	gst_element_set_state(m_playbin, GST_STATE_PLAYING);
-}
-
-void NWaveformBuilderGstreamer::startFile(const QString &file)
+void NWaveformBuilderGstreamer::start(const QString &file)
 {
 	stop();
 
-	if (NWaveformBuilderInterface::peaksFindFromCache(file))
+	if (peaksFindFromCache(file))
 		return;
 	if (!QFileInfo(file).exists())
 		return;
@@ -183,7 +172,15 @@ void NWaveformBuilderGstreamer::startFile(const QString &file)
 	gst_object_unref(sink);
 	gst_object_unref(pad);
 
-	start();
+	reset();
+	QThread::start();
+
+#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+	if (!m_timer->isActive())
+		m_timer->start(100);
+#endif
+
+	gst_element_set_state(m_playbin, GST_STATE_PLAYING);
 }
 
 qreal NWaveformBuilderGstreamer::position()

@@ -135,18 +135,11 @@ void NWaveformBuilderVlc::stop()
 	}
 }
 
-void NWaveformBuilderVlc::start()
-{
-	reset();
-	QThread::start();
-	libvlc_media_player_play(m_mediaPlayer);
-}
-
-void NWaveformBuilderVlc::startFile(const QString &file)
+void NWaveformBuilderVlc::start(const QString &file)
 {
 	stop();
 
-	if (NWaveformBuilderInterface::peaksFindFromCache(file))
+	if (peaksFindFromCache(file))
 		return;
 	if (!QFileInfo(file).exists())
 		return;
@@ -161,7 +154,9 @@ void NWaveformBuilderVlc::startFile(const QString &file)
 	libvlc_media_t *mediaDescriptor = libvlc_media_new_path(m_vlcInstance, file.toUtf8());
 	libvlc_media_player_set_media(m_mediaPlayer, mediaDescriptor);
 
-	start();
+	reset();
+	QThread::start();
+	libvlc_media_player_play(m_mediaPlayer);
 }
 
 void NWaveformBuilderVlc::update()

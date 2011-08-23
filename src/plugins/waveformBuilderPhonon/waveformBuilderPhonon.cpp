@@ -70,14 +70,6 @@ NWaveformBuilderPhonon::~NWaveformBuilderPhonon()
 	wait();
 }
 
-void NWaveformBuilderPhonon::start()
-{
-	reset();
-	QThread::start();
-	m_mediaObject->play();
-	m_timer->start(300);
-}
-
 void NWaveformBuilderPhonon::stop()
 {
 	m_timer->stop();
@@ -90,11 +82,11 @@ void NWaveformBuilderPhonon::stop()
 	}
 }
 
-void NWaveformBuilderPhonon::startFile(const QString &file)
+void NWaveformBuilderPhonon::start(const QString &file)
 {
 	stop();
 
-	if (NWaveformBuilderInterface::peaksFindFromCache(file))
+	if (peaksFindFromCache(file))
 		return;
 	if (!QFileInfo(file).exists())
 		return;
@@ -102,7 +94,10 @@ void NWaveformBuilderPhonon::startFile(const QString &file)
 
 	m_mediaObject->setCurrentSource(Phonon::MediaSource(file));
 
-	start();
+	reset();
+	QThread::start();
+	m_mediaObject->play();
+	m_timer->start(300);
 }
 
 void NWaveformBuilderPhonon::update()

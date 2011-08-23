@@ -120,7 +120,7 @@ void NPluginLoader::_loadPlugins()
 
 	int index;
 
-	QString playbackStr = NSettings::value("Playback").toString();
+	QString playbackStr = NSettings::instance()->value("Playback").toString();
 	index = _identifiers.indexOf("Nulloy/Playback/" + playbackStr);
 	if (index == -1)
 		index = _identifiers.indexOf(QRegExp("Nulloy/Playback/" + _playbackPrefer + ".*"));
@@ -128,12 +128,12 @@ void NPluginLoader::_loadPlugins()
 		index = _identifiers.indexOf(QRegExp("Nulloy/Playback.*"));
 	if (index != -1) {
 		QString interface = qobject_cast<NPluginInterface *>(objects.at(index))->interface();
-		if (interface != NPlaybackEngineInterface::INTERFACE()) {
+		if (interface != NPlaybackEngineInterface::interface()) {
 			QMessageBox::warning(NULL, QObject::tr("Plugin Interface Mismatch"),
 				_identifiers.at(index).section('/', 2, 2) + " " +
 				_identifiers.at(index).section('/', 1, 1) + " plugin has a different version of " +
 				_identifiers.at(index).section('/', 1, 1) + " interface.\n" +
-				"Internal version: " + NPlaybackEngineInterface::INTERFACE().section('/', 2, 2) + "\n" +
+				"Internal version: " + NPlaybackEngineInterface::interface().section('/', 2, 2) + "\n" +
 				"Plugin version: " + _identifiers.at(index).section('/', 3, 3),
 				QMessageBox::Close);
 		}
@@ -141,10 +141,10 @@ void NPluginLoader::_loadPlugins()
 		_playback = qobject_cast<NPlaybackEngineInterface *>(objects.at(index));
 		qobject_cast<NPluginInterface *>(objects.at(index))->init();
 		usedFlags[index] = TRUE;
-		NSettings::setValue("Playback", _identifiers.at(index).section('/', 2));
+		NSettings::instance()->setValue("Playback", _identifiers.at(index).section('/', 2));
 	}
 
-	QString waveformStr = NSettings::value("Waveform").toString();
+	QString waveformStr = NSettings::instance()->value("Waveform").toString();
 	index = _identifiers.indexOf("Nulloy/Waveform/" + waveformStr);
 	if (index == -1)
 		index = _identifiers.indexOf(QRegExp("Nulloy/Waveform/" + _wavefowmPrefer + ".*"));
@@ -152,12 +152,12 @@ void NPluginLoader::_loadPlugins()
 		index = _identifiers.indexOf(QRegExp("Nulloy/Waveform.*"));
 	if (index != -1) {
 		QString interface = qobject_cast<NPluginInterface *>(objects.at(index))->interface();
-		if (interface != NWaveformBuilderInterface::INTERFACE()) {
+		if (interface != NWaveformBuilderInterface::interface()) {
 			QMessageBox::warning(NULL, QObject::tr("Plugin Interface Mismatch"),
 				_identifiers.at(index).section('/', 2, 2) + " " +
 				_identifiers.at(index).section('/', 1, 1) + " plugin has a different version of " +
 				_identifiers.at(index).section('/', 1, 1) + " interface.\n" +
-				"Internal version: " + NWaveformBuilderInterface::INTERFACE().section('/', 2, 2) + "\n" +
+				"Internal version: " + NWaveformBuilderInterface::interface().section('/', 2, 2) + "\n" +
 				"Plugin version: " + _identifiers.at(index).section('/', 3, 3),
 				QMessageBox::Close);
 		}
@@ -165,7 +165,7 @@ void NPluginLoader::_loadPlugins()
 		_waveform = qobject_cast<NWaveformBuilderInterface *>(objects.at(index));
 		qobject_cast<NPluginInterface *>(objects.at(index))->init();
 		usedFlags[index] = TRUE;
-		NSettings::setValue("Waveform", _identifiers.at(index).section('/', 2));
+		NSettings::instance()->setValue("Waveform", _identifiers.at(index).section('/', 2));
 	}
 
 	for (int i = 0; i < loaders.size(); ++i) {
