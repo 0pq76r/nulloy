@@ -86,8 +86,18 @@ void NWaveformBuilderGstreamer::init()
 	if (m_init)
 		return;
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#ifdef Q_WS_WIN
 	_putenv("GST_PLUGIN_PATH=Plugins\\GStreamer");
+#endif
+
+#ifdef Q_WS_MAC
+	QDir executable_path(QCoreApplication::applicationDirPath());
+	if (executable_path.dirName() == "MacOS") {
+		executable_path.cd("GStreamer/plugins");
+		if (executable_path.exists())
+			putenv(QString("GST_PLUGIN_PATH=" + executable_path.absolutePath() +
+							":" + getenv("GST_PLUGIN_PATH")).toAscii().data());
+	}
 #endif
 
 	int argc;
@@ -97,7 +107,7 @@ void NWaveformBuilderGstreamer::init()
 
 	m_playbin = NULL;
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#if defined Q_WS_WIN || defined Q_WS_MAC
 	m_timer = new QTimer(this);
 	connect(m_timer, SIGNAL(timeout()), this, SLOT(update()));
 #endif
@@ -118,7 +128,7 @@ NWaveformBuilderGstreamer::~NWaveformBuilderGstreamer()
 
 void NWaveformBuilderGstreamer::stop()
 {
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#if defined Q_WS_WIN || defined Q_WS_MAC
 	m_timer->stop();
 #endif
 
@@ -151,7 +161,7 @@ void NWaveformBuilderGstreamer::start(const QString &file)
 								! audioconvert ! audio/x-raw-int, width=16, signed=true \
 								! fakesink name=w_sink", NULL);
 
-#if !defined WIN32 && !defined _WINDOWS && !defined Q_WS_WIN
+#if !defined Q_WS_WIN && !defined Q_WS_MAC
 	GstBus *bus = gst_pipeline_get_bus(GST_PIPELINE(m_playbin));
 	gst_bus_add_signal_watch(bus);
 #if defined(QT_DEBUG) && !defined(QT_NO_DEBUG)
@@ -175,7 +185,7 @@ void NWaveformBuilderGstreamer::start(const QString &file)
 	reset();
 	QThread::start();
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#if defined Q_WS_WIN || defined Q_WS_MAC
 	if (!m_timer->isActive())
 		m_timer->start(100);
 #endif
@@ -202,7 +212,7 @@ qreal NWaveformBuilderGstreamer::position()
 	return (qreal)pos / len;
 }
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#if defined Q_WS_WIN || defined Q_WS_MAC
 void NWaveformBuilderGstreamer::update()
 {
 	GstBus *bus = gst_pipeline_get_bus(GST_PIPELINE(m_playbin));

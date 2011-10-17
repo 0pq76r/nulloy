@@ -31,7 +31,7 @@
 #include "waveformBuilderGstreamer.h"
 #endif
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#ifdef Q_WS_WIN
 #include "w7TaskBar.h"
 #include <windows.h>
 #endif
@@ -58,11 +58,9 @@ void NMainWindow::init(const QString &uiFile)
 	layout->setContentsMargins(0, 0, 0, 0);
 	setLayout(layout);
 	setStyleSheet(form->styleSheet());
-
-	setSizeGripEnabled(TRUE);
 #else
 	Q_UNUSED(uiFile)
-    ui.setupUi(this);
+	ui.setupUi(this);
 #endif
 
 	NWaveformSlider *waveformSlider = qFindChild<NWaveformSlider *>(this, "waveformSlider");
@@ -79,33 +77,20 @@ void NMainWindow::init(const QString &uiFile)
 	for (int i = 0; i < widgets.size(); ++i)
 		widgets.at(i)->installEventFilter(this);
 
-	QStringList iconList;
-#if !defined WIN32 && !defined _WINDOWS && !defined Q_WS_WIN
-	iconList << "icon.";
-	QDir parentDir(QCoreApplication::applicationDirPath());
-	if (parentDir.dirName() == "bin") {
-		iconList << NCore::rcDir() + "/icon.";
-		iconList << "../share/nulloy/icon.";
-	}
+	QIcon icon;
+#ifdef Q_WS_X11
+	icon = QIcon::fromTheme("nulloy");
 #endif
-	iconList << ":icon.";
-
-	QStringList iconFormats;
-	iconFormats << "png" << "svg";
-
-	bool set = FALSE;
-	foreach (QString icon, iconList) {
-		foreach (QString format, iconFormats) {
-			QString iconFull = icon + format;
-			if (QFileInfo(iconFull).exists()) {
-				setWindowIcon(QIcon(iconFull));
-				set = TRUE;
-				break;
-			}
-		}
-		if (set)
-			break;
+#ifndef Q_WS_MAC
+	if (icon.isNull()) {
+		QStringList files = QDir(":").entryList(QStringList() << "icon-*", QDir::Files);
+		foreach (QString fileName, files)
+				icon.addFile(":" + fileName);
 	}
+#else
+	icon.addFile(":icon-16.png");
+#endif
+	setWindowIcon(icon);
 
 	QMetaObject::connectSlotsByName(this);
 }
@@ -197,7 +182,7 @@ void NMainWindow::closeEvent(QCloseEvent *event)
 	emit closed();
 }
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#ifdef Q_WS_WIN
 bool NMainWindow::winEvent(MSG *message, long *result)
 {
 	return NW7TaskBar::winEvent(message, result);
@@ -211,7 +196,7 @@ void NMainWindow::minimize()
 
 void NMainWindow::setOnTop(bool onTop)
 {
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#ifdef Q_WS_WIN
 	if (onTop)
 		SetWindowPos(this->winId(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 	else
@@ -226,7 +211,7 @@ void NMainWindow::setOnTop(bool onTop)
 	show();
 #endif
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#ifdef Q_WS_WIN
 	NW7TaskBar::setWindow(this);
 #endif
 }

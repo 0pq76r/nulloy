@@ -1,6 +1,10 @@
 TEMPLATE = subdirs
 CONFIG += ordered
 
+unix:isEmpty(N_CONFIG_SUCCESS) {
+    error(Please run configure.)
+}
+
 # qmake -config no-skins
 !no-skins {
 	widgets.subdir = src/widgetCollection

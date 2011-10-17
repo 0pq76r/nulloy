@@ -15,7 +15,7 @@
 
 #include "player.h"
 
-#include "widgetPrototype.h"
+#include "scriptPrototypes.h"
 #include "core.h"
 #include "action.h"
 #include "systemTray.h"
@@ -31,7 +31,7 @@
 #include "playbackEngineGstreamer.h"
 #endif
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#ifdef Q_WS_WIN
 #include "w7TaskBar.h"
 #endif
 
@@ -40,12 +40,19 @@
 #include <QFileDialog>
 #include <QMetaObject>
 #include <QNetworkRequest>
+#include <QTextBrowser>
 
 #include <QDebug>
 
+NWidgetPrototype widgetPrototype;
+NLayoutPrototype layoutPrototype;
 Q_DECLARE_METATYPE(QWidget *)
-Q_DECLARE_METATYPE(QPushButton *)
-NWidgetPrototype wProto;
+Q_DECLARE_METATYPE(QLayout *)
+Q_DECLARE_METATYPE(NMainWindow *)
+Q_DECLARE_METATYPE(NPlaybackEngineInterface *)
+Q_DECLARE_METATYPE(QList<QWidget *>)
+Q_DECLARE_METATYPE(QMargins)
+
 
 struct QtMetaObject : private QObject
 {
@@ -53,16 +60,32 @@ public:
 	static const QMetaObject *get() { return &static_cast<QtMetaObject *>(0)->staticQtMetaObject; }
 };
 
+template <typename T>
+QScriptValue qScriptValueFromQObject(QScriptEngine *engine, T const &obj)
+{
+	return engine->newQObject(obj);
+}
+
+template <typename T>
+void qScriptValueToQObject(const QScriptValue &value, T &obj)
+{
+	obj = qobject_cast<T>(value.toQObject());
+}
+
+template <typename T>
+int qScriptRegisterQObjectMetaType(QScriptEngine *engine, const QScriptValue &prototype = QScriptValue(), T *obj = 0)
+{
+	Q_UNUSED(obj);
+	return qScriptRegisterMetaType<T>(engine, qScriptValueFromQObject, qScriptValueToQObject, prototype);
+}
+
 NPlayer::NPlayer()
 {
 	setObjectName("NPlayer");
 	m_settings = new NSettings(this);
 
-	m_networkManager = new QNetworkAccessManager(this);
-	m_networkManager->setObjectName("networkManager");
 
-	m_localPlaylist = NCore::rcDir() + "/" + NCore::applicationBinaryName() + ".m3u";
-
+	// construct playbackEngine
 #ifndef _N_NO_PLUGINS_
 	m_playbackEngine = NPluginLoader::playbackPlugin();
 #else
@@ -71,24 +94,20 @@ NPlayer::NPlayer()
 #endif
 	m_playbackEngine->setParent(this);
 	m_playbackEngine->setObjectName("playbackEngine");
+	//
 
+
+	// construct mainWindow
 	m_mainWindow = new NMainWindow();
+	m_mainWindow->setObjectName("mainWindow");
 	connect(m_mainWindow, SIGNAL(closed()), this, SLOT(mainWindowClosed()));
 #ifndef _N_NO_SKINS_
 	m_mainWindow->init(NSkinLoader::skinUiFormFile());
 #else
 	m_mainWindow->init(QString());
 #endif
+	//
 
-	m_preferencesDialog = new NPreferencesDialog(m_mainWindow);
-	connect(m_preferencesDialog, SIGNAL(settingsChanged()), this, SLOT(preferencesDialogSettingsChanged()));
-	connect(m_preferencesDialog, SIGNAL(versionOnlineRequested()), this, SLOT(versionOnlineFetch()));
-
-	m_playlistWidget = qFindChild<NPlaylistWidget *>(m_mainWindow, "playlistWidget");
-
-	m_logDialog = new NLogDialog(m_mainWindow);
-	connect(m_playbackEngine, SIGNAL(message(QMessageBox::Icon, const QString &, const QString &)),
-			m_logDialog, SLOT(showMessage(QMessageBox::Icon, const QString &, const QString &)));
 
 	// loading script
 	m_scriptEngine = new QScriptEngine(this);
@@ -105,18 +124,33 @@ NPlayer::NPlayer()
 	QScriptValue Qt = m_scriptEngine->newQMetaObject(QtMetaObject::get());
 	m_scriptEngine->globalObject().setProperty("Qt", Qt);
 
-	m_scriptEngine->setDefaultPrototype(qMetaTypeId<QWidget *>(), m_scriptEngine->newQObject(&wProto));
+	QString ws;
+#if defined Q_WS_MAC
+	ws = "mac";
+#elif defined Q_WS_WIN
+	ws = "win";
+#endif
+	m_scriptEngine->globalObject().setProperty("Q_WS", ws);
+
+	qScriptRegisterQObjectMetaType<NMainWindow *>(m_scriptEngine);
+	qScriptRegisterQObjectMetaType<NPlaybackEngineInterface *>(m_scriptEngine);
+	qScriptRegisterMetaType(m_scriptEngine, NMarginsPrototype::toScriptValue, NMarginsPrototype::fromScriptValue);
+	m_scriptEngine->setDefaultPrototype(qMetaTypeId<QWidget *>(), m_scriptEngine->newQObject(&widgetPrototype));
+	m_scriptEngine->setDefaultPrototype(qMetaTypeId<QLayout *>(), m_scriptEngine->newQObject(&layoutPrototype));
+	qScriptRegisterSequenceMetaType< QList<QWidget *> >(m_scriptEngine);
 
 	QScriptValue constructor = m_scriptEngine->evaluate("Program");
-	QScriptValue playbackEngineObject = m_scriptEngine->newQObject(m_playbackEngine, QScriptEngine::QtOwnership);
-	QScriptValue windowScriptObject = m_scriptEngine->newQObject(m_mainWindow, QScriptEngine::QtOwnership);
-	QScriptValue programmObject = constructor.construct(QScriptValueList() << windowScriptObject << playbackEngineObject);
+	QScriptValue playerEngineObject = m_scriptEngine->newQObject(this, QScriptEngine::QtOwnership);
+	constructor.construct(QScriptValueList() << playerEngineObject);
+	//
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
-	NW7TaskBar::init(this);
-	NW7TaskBar::setWindow(m_mainWindow);
-	connect(m_playbackEngine, SIGNAL(positionChanged(qreal)), NW7TaskBar::instance(), SLOT(setProgress(qreal)));
-#endif
+
+	m_preferencesDialog = new NPreferencesDialog(m_mainWindow);
+	connect(m_preferencesDialog, SIGNAL(settingsChanged()), this, SLOT(preferencesDialogSettingsChanged()));
+	connect(m_preferencesDialog, SIGNAL(versionOnlineRequested()), this, SLOT(versionOnlineFetch()));
+
+	m_playlistWidget = qFindChild<NPlaylistWidget *>(m_mainWindow, "playlistWidget");
+
 
 	// actions
 	NAction *playAction = new NAction(style()->standardIcon(QStyle::SP_MediaPlay), tr("Play / Pause"), this);
@@ -168,6 +202,8 @@ NPlayer::NPlayer()
 	NAction *alwaysOnTopAction = new NAction(tr("Always On Top"), this);
 	alwaysOnTopAction->setCheckable(TRUE);
 	alwaysOnTopAction->setObjectName("alwaysOnTopAction");
+	//
+
 
 	// playlist actions
 	NAction *loadNextAction = new NAction(tr("Load next file in directory when finished"), this);
@@ -200,6 +236,8 @@ NPlayer::NPlayer()
 	loadNextNameUpAction->setActionGroup(group);
 	loadNextDateDownAction->setActionGroup(group);
 	loadNextDateUpAction->setActionGroup(group);
+	//
+
 
 	// tray icon
 	QMenu *trayIconMenu = new QMenu(this);
@@ -212,7 +250,13 @@ NPlayer::NPlayer()
 	trayIconMenu->addAction(exitAction);
 	NSystemTray::init(this);
 	NSystemTray::setContextMenu(trayIconMenu);
+#ifdef Q_WS_MAC
+	NSystemTray::setIcon(QIcon(":mac-systray.png"));
+#else
 	NSystemTray::setIcon(m_mainWindow->windowIcon());
+#endif
+	//
+
 
 	// context menu
 	m_contextMenu = new QMenu(m_mainWindow);
@@ -220,12 +264,12 @@ NPlayer::NPlayer()
 	connect(m_mainWindow, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(showContextMenu(QPoint)));
 	m_contextMenu->addAction(fileDialogAction);
 
-	QMenu *windowSubMenu = new QMenu("Window");
+	QMenu *windowSubMenu = new QMenu("Window", m_mainWindow);
 	windowSubMenu->addAction(whilePlayingOnTopAction);
 	windowSubMenu->addAction(alwaysOnTopAction);
 	m_contextMenu->addMenu(windowSubMenu);
 
-	QMenu *playlistSubMenu = new QMenu("Playlist");
+	QMenu *playlistSubMenu = new QMenu("Playlist", m_mainWindow);
 	playlistSubMenu->addAction(loadNextAction);
 	playlistSubMenu->addAction(loadNextNameDownAction);
 	playlistSubMenu->addAction(loadNextNameUpAction);
@@ -238,13 +282,36 @@ NPlayer::NPlayer()
 	m_contextMenu->addAction(aboutAction);
 	m_contextMenu->addSeparator();
 	m_contextMenu->addAction(exitAction);
+	//
+
+#ifdef Q_WS_MAC
+	// removing icons from context menu
+	QList<NAction *> actions = findChildren<NAction *>();
+	for (int i = 0; i < actions.size(); ++i)
+		actions.at(i)->setIcon(QIcon());
+#endif
+
+#ifdef Q_WS_WIN
+	NW7TaskBar::init(this);
+	NW7TaskBar::setWindow(m_mainWindow);
+	connect(m_playbackEngine, SIGNAL(positionChanged(qreal)), NW7TaskBar::instance(), SLOT(setProgress(qreal)));
+#endif
+
+	m_networkManager = new QNetworkAccessManager(this);
+	m_networkManager->setObjectName("networkManager");
+
+	m_localPlaylist = NCore::rcDir() + "/" + NCore::applicationBinaryName() + ".m3u";
+
+	m_logDialog = new NLogDialog(m_mainWindow);
+	connect(m_playbackEngine, SIGNAL(message(QMessageBox::Icon, const QString &, const QString &)),
+			m_logDialog, SLOT(showMessage(QMessageBox::Icon, const QString &, const QString &)));
+
+	QMetaObject::connectSlotsByName(this);
 
 	m_settings->initShortcuts(this);
 	m_settings->loadShortcuts();
 
 	loadSettings();
-
-	QMetaObject::connectSlotsByName(this);
 
 	m_mainWindow->setTitle("");
 
@@ -268,7 +335,18 @@ NPlayer::NPlayer()
 
 NPlayer::~NPlayer()
 {
+	NPluginLoader::deinit();
 	delete m_mainWindow;
+}
+
+NMainWindow* NPlayer::mainWindow()
+{
+	return m_mainWindow;
+}
+
+NPlaybackEngineInterface* NPlayer::playbackEngine()
+{
+	return m_playbackEngine;
 }
 
 void NPlayer::message(const QString &str)
@@ -376,19 +454,6 @@ void NPlayer::preferencesDialogSettingsChanged()
 	NSystemTray::setEnabled(m_settings->value("GUI/TrayIcon").toBool());
 }
 
-QString NPlayer::about()
-{
-	return QString() +
-			"<b>" +  QCoreApplication::applicationName() + "</b> Music Player, " +
-				"<a href='http://" + QCoreApplication::organizationDomain() + "'>http://" +
-					QCoreApplication::organizationDomain() + "</a><br>" +
-			"Version: " + QCoreApplication::applicationVersion() +
-				(QString(_N_TIME_STAMP_).isEmpty() ? "" : " (Build " + QString(_N_TIME_STAMP_) + ")") + "<br><br>" +
-			"Copyright (C) 2010-2011  Sergey Vlasov &lt;<a href='mailto:Sergey Vlasov <sergey@vlasov.me>" +
-				"?subject=" + QCoreApplication::applicationName() + " " +
-				QCoreApplication::applicationVersion() + "'>sergey@vlasov.me</a>&gt;";
-}
-
 void NPlayer::versionOnlineFetch()
 {
 	QString suffix;
@@ -407,7 +472,7 @@ void NPlayer::versionOnlineFetch()
 
 void NPlayer::on_networkManager_finished(QNetworkReply *reply)
 {
-    if (!reply->error()) {
+	if (!reply->error()) {
 		QString versionOnline = reply->readAll().simplified();
 
 		if (m_preferencesDialog->isVisible())
@@ -491,7 +556,7 @@ void NPlayer::on_playbackEngine_stateChanged(int state)
 	bool alwaysOnTop = m_settings->value("GUI/AlwaysOnTop").toBool();
 	if (!alwaysOnTop)
 		m_mainWindow->setOnTop(whilePlaying && state == NPlaybackEngineInterface::Playing);
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#ifdef Q_WS_WIN
 	if (state == NPlaybackEngineInterface::Playing) {
 		NW7TaskBar::instance()->setState(NW7TaskBar::Normal);
 		NW7TaskBar::setOverlayIcon(QIcon(":/trolltech/styles/commonstyle/images/media-play-32.png"), "Playing");
@@ -544,7 +609,64 @@ void NPlayer::loadNextActionTriggered()
 
 void NPlayer::showAboutMessageBox()
 {
-	QMessageBox::about(m_mainWindow, QObject::tr("About ") + QCoreApplication::applicationName(), about());
+	QString html = QString() +
+#ifdef Q_WS_MAC
+					"<span style=\" font-size:14pt;\">" +
+#else
+					"<span style=\" font-size:9pt;\">" +
+#endif
+						"<b>" +  QCoreApplication::applicationName() + "</b> Music Player " +
+							"<a href='http://" + QCoreApplication::organizationDomain() + "'>http://" +
+								QCoreApplication::organizationDomain() + "</a>" +
+					"</span><br>" +
+#ifdef Q_WS_MAC
+					"<span style=\" font-size:10pt;\">" +
+#else
+					"<span style=\" font-size:8pt;\">" +
+#endif
+						"Version: " + QCoreApplication::applicationVersion() +
+							(QString(_N_TIME_STAMP_).isEmpty() ? "" : " (Build " + QString(_N_TIME_STAMP_) + ")") + "<br><br>" +
+						"Copyright (C) 2010-2011  Sergey Vlasov &lt;<a href='mailto:Sergey Vlasov <sergey@vlasov.me>" +
+							"?subject=" + QCoreApplication::applicationName() + " " +
+							QCoreApplication::applicationVersion() + "'>sergey@vlasov.me</a>&gt;" +
+					"</span>";
+
+	QDialog *dialog = new QDialog(m_mainWindow);
+	dialog->setWindowTitle(QObject::tr("About ") + QCoreApplication::applicationName());
+	dialog->setMaximumSize(0, 0);
+	QVBoxLayout *layout = new QVBoxLayout;
+	dialog->setLayout(layout);
+
+	QLabel *iconLabel = new QLabel;
+	QPixmap pixmap(":icon-96.png");
+	iconLabel->setPixmap(pixmap);
+#ifdef Q_WS_MAC
+	iconLabel->setMask(pixmap.mask());
+#endif
+
+	QHBoxLayout* iconLayout = new QHBoxLayout();
+	iconLayout->addStretch();
+	iconLayout->addWidget(iconLabel);
+	iconLayout->addStretch();
+	layout->addLayout(iconLayout);
+
+	QTextBrowser *textBrowser = new QTextBrowser(this);
+	textBrowser->setStyleSheet("background: transparent");
+	textBrowser->setFrameShape(QFrame::NoFrame);
+	textBrowser->setHtml("<center>" + html + "</center>");
+
+	textBrowser->setMinimumWidth(350);
+	layout->addWidget(textBrowser);
+
+	QPushButton *closeButton = new QPushButton("Close");
+	connect(closeButton, SIGNAL(clicked()), dialog, SLOT(accept())); \
+	QHBoxLayout* buttonLayout = new QHBoxLayout();
+	buttonLayout->addStretch();
+	buttonLayout->addWidget(closeButton);
+	buttonLayout->addStretch();
+	layout->addLayout(buttonLayout);
+
+	dialog->exec();
 }
 
 void NPlayer::showFileDialog()

@@ -22,7 +22,7 @@
 
 #include <gst/gst.h>
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#if defined Q_WS_WIN || defined Q_WS_MAC
 #include <QTimer>
 #endif
 
@@ -38,7 +38,7 @@ private:
 	QString m_currentFile;
 	qreal position();
 
-#if defined WIN32 || defined _WINDOWS || defined Q_WS_WIN
+#if defined Q_WS_WIN || defined Q_WS_MAC
 private:
 	QTimer *m_timer;
 private slots:
@@ -50,7 +50,7 @@ public:
 	~NWaveformBuilderGstreamer();
 
 	void init();
-	QString identifier() { return "Nulloy/Waveform/GStreamer/0.2.1"; }
+	QString identifier() { return "Nulloy/Waveform/GStreamer/0.3.2"; }
 	QString interface() { return NWaveformBuilderInterface::interface(); }
 
 	void start(const QString &file);
