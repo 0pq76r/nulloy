@@ -13,39 +13,27 @@
 **
 *********************************************************************/
 
-#ifndef N_SETTINGS_H
-#define N_SETTINGS_H
+#include  "trash.h"
 
-#include "action.h"
+#include <windows.h>
+#include <shellapi.h>
 
-#include <QSettings>
-#include <QVariant>
-
-class NSettings : public QSettings
+int NTrash(const QString &path, QString *error)
 {
-	Q_OBJECT
-
-private:
-	static NSettings *m_instance;
-	QList<NAction *> m_actionList;
-
-public:
-	NSettings(QObject *parent = 0);
-	~NSettings();
-	static NSettings* instance();
-
-	void initShortcuts(QObject *instance);
-	void saveShortcuts();
-	void loadShortcuts();
-	QList<NAction *> shortcuts();
-
-	void setValue(const QString &key, const QVariant &value);
-	void remove(const QString &key);
-
-signals:
-	void valueChanged(const QString &key, const QVariant &value);
-};
-
-#endif
+	QString new_path = path;
+	new_path.append("00");
+	new_path[new_path.size() - 2] = 0;
+	new_path[new_path.size() - 1] = 0;
+	SHFILEOPSTRUCT shfo = {0};
+	shfo.wFunc = FO_DELETE;
+	shfo.pFrom = (wchar_t *)(new_path.utf16());
+	shfo.fFlags = FOF_NOCONFIRMATION | FOF_SIMPLEPROGRESS | FOF_NOERRORUI | FOF_ALLOWUNDO;
+	shfo.fAnyOperationsAborted = FALSE;
+	shfo.hNameMappings = NULL;
+	shfo.pTo = NULL;
+	shfo.lpszProgressTitle = NULL;
+	return SHFileOperation(&shfo);
+}
 
 /* vim: set ts=4 sw=4: */
+

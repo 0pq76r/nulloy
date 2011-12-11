@@ -12,38 +12,23 @@
 **  http://www.gnu.org/licenses/gpl-3.0.html
 **
 *********************************************************************/
+#ifndef N_M3U_PLAYLIST_H
+#define N_M3U_PLAYLIST_H
 
-#ifndef N_SETTINGS_H
-#define N_SETTINGS_H
+#include <QString>
 
-#include "action.h"
-
-#include <QSettings>
-#include <QVariant>
-
-class NSettings : public QSettings
+typedef struct
 {
-	Q_OBJECT
+	QString title;
+	QString path;
+	int duration;
+	float position; // -1 == failed
+} NM3uItem;
 
-private:
-	static NSettings *m_instance;
-	QList<NAction *> m_actionList;
-
-public:
-	NSettings(QObject *parent = 0);
-	~NSettings();
-	static NSettings* instance();
-
-	void initShortcuts(QObject *instance);
-	void saveShortcuts();
-	void loadShortcuts();
-	QList<NAction *> shortcuts();
-
-	void setValue(const QString &key, const QVariant &value);
-	void remove(const QString &key);
-
-signals:
-	void valueChanged(const QString &key, const QVariant &value);
+namespace NM3uPlaylist
+{
+	QList<NM3uItem> read(const QString &file);
+	void write(const QString &file, QList<NM3uItem> items);
 };
 
 #endif

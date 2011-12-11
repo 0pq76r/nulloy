@@ -13,39 +13,25 @@
 **
 *********************************************************************/
 
-#ifndef N_SETTINGS_H
-#define N_SETTINGS_H
+#include  "trash.h"
+#include <QProcess>
 
-#include "action.h"
-
-#include <QSettings>
-#include <QVariant>
-
-class NSettings : public QSettings
+int NTrash(const QString &path, QString *error)
 {
-	Q_OBJECT
+	if (QProcess::execute("which trash") != 0) {
+		*error = "'trash-cli' is not available on your system.";
+		return -1;
+	}
 
-private:
-	static NSettings *m_instance;
-	QList<NAction *> m_actionList;
-
-public:
-	NSettings(QObject *parent = 0);
-	~NSettings();
-	static NSettings* instance();
-
-	void initShortcuts(QObject *instance);
-	void saveShortcuts();
-	void loadShortcuts();
-	QList<NAction *> shortcuts();
-
-	void setValue(const QString &key, const QVariant &value);
-	void remove(const QString &key);
-
-signals:
-	void valueChanged(const QString &key, const QVariant &value);
-};
-
-#endif
+	QProcess trash;
+	trash.start("trash \"" +  path + "\"");
+	trash.waitForStarted();
+	trash.waitForFinished();
+	if ( trash.readAll().startsWith("trash: cannot trash"))
+		return -1;
+	else
+		return 0;
+}
 
 /* vim: set ts=4 sw=4: */
+

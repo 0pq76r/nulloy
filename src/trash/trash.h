@@ -13,39 +13,6 @@
 **
 *********************************************************************/
 
-#ifndef N_SETTINGS_H
-#define N_SETTINGS_H
+#include <QString>
 
-#include "action.h"
-
-#include <QSettings>
-#include <QVariant>
-
-class NSettings : public QSettings
-{
-	Q_OBJECT
-
-private:
-	static NSettings *m_instance;
-	QList<NAction *> m_actionList;
-
-public:
-	NSettings(QObject *parent = 0);
-	~NSettings();
-	static NSettings* instance();
-
-	void initShortcuts(QObject *instance);
-	void saveShortcuts();
-	void loadShortcuts();
-	QList<NAction *> shortcuts();
-
-	void setValue(const QString &key, const QVariant &value);
-	void remove(const QString &key);
-
-signals:
-	void valueChanged(const QString &key, const QVariant &value);
-};
-
-#endif
-
-/* vim: set ts=4 sw=4: */
+int NTrash(const QString &path, QString *error);

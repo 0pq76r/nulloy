@@ -17,6 +17,7 @@
 #define N_PLAYLIST_WIDGET_H
 
 #include "playlistItem.h"
+#include "m3uPlaylist.h"
 #include <QListWidget>
 
 class NPlaylistWidget : public QListWidget
@@ -25,17 +26,19 @@ class NPlaylistWidget : public QListWidget
 
 private:
 	NPlaylistItem *m_currentItem;
+	QMenu *m_contextMenu;
 
+	void contextMenuEvent(QContextMenuEvent *event);
 	void setCurrentItem(NPlaylistItem *item);
 	void activateItem(NPlaylistItem *item);
-	NPlaylistItem* createItemFromPath(const QString &path);
+	NPlaylistItem* createItemFromPath(const QString &file);
+	NPlaylistItem* createItemFromM3uItem(NM3uItem item);
 	bool dropMimeData(int index, const QMimeData *data, Qt::DropAction action);
 	QStringList mimeTypes() const;
 #ifdef Q_WS_MAC
 	Qt::DropActions supportedDropActions() const;
 #endif
 	QMimeData* mimeData(const QList<NPlaylistItem *> items) const;
-	void keyPressEvent(QKeyEvent *e);
 
 public:
 	NPlaylistWidget(QWidget *parent = 0);
@@ -57,16 +60,18 @@ public slots:
 	void appendMediaList(const QStringList &pathList);
 	void setMediaList(const QStringList &pathList);
 	void activateMediaList(const QStringList &pathList) { setMediaList(pathList); activateFirst(); }
-	void setMediaListFromPlaylist(const QString &path);
+	void setMediaListFromPlaylist(const QString &file);
 	void writePlaylist(const QString &file);
 
 private slots:
 	void on_itemActivated(QListWidgetItem *item);
 	void rowsAboutToBeRemoved(const QModelIndex &parent, int start, int end);
+	void moveToTrash();
+	void removeFromPlaylist();
 
 signals:
 	void currentActivated();
-	void mediaSet(const QString &path);
+	void mediaSet(const QString &file);
 	void closed();
 };
 

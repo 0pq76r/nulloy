@@ -19,6 +19,7 @@
 #include "core.h"
 #include "action.h"
 #include "systemTray.h"
+#include "m3uPlaylist.h"
 
 #ifndef _N_NO_SKINS_
 #include "skinLoader.h"
@@ -157,24 +158,28 @@ NPlayer::NPlayer()
 	playAction->setObjectName("playAction");
 	playAction->setStatusTip(tr("Toggle playback"));
 	playAction->setGlobal(TRUE);
+	playAction->setCustomizable(TRUE);
 	connect(playAction, SIGNAL(triggered()), m_playbackEngine, SLOT(play()));
 
 	NAction *stopAction = new NAction(style()->standardIcon(QStyle::SP_MediaStop), tr("Stop"), this);
 	stopAction->setObjectName("stopAction");
 	stopAction->setStatusTip(tr("Stop playback"));
 	stopAction->setGlobal(TRUE);
+	stopAction->setCustomizable(TRUE);
 	connect(stopAction, SIGNAL(triggered()), m_playbackEngine, SLOT(stop()));
 
 	NAction *prevAction = new NAction(style()->standardIcon(QStyle::SP_MediaSkipBackward), tr("Previous"), this);
 	prevAction->setObjectName("prevAction");
 	prevAction->setStatusTip(tr("Play previous track in playlist"));
 	prevAction->setGlobal(TRUE);
+	prevAction->setCustomizable(TRUE);
 	connect(prevAction, SIGNAL(triggered()), m_playlistWidget, SLOT(activatePrev()));
 
 	NAction *nextAction = new NAction(style()->standardIcon(QStyle::SP_MediaSkipForward), tr("Next"), this);
 	nextAction->setObjectName("nextAction");
 	nextAction->setStatusTip(tr("Play next track in playlist"));
 	nextAction->setGlobal(TRUE);
+	nextAction->setCustomizable(TRUE);
 	connect(nextAction, SIGNAL(triggered()), m_playlistWidget, SLOT(activateNext()));
 
 	NAction *preferencesAction = new NAction(QIcon::fromTheme("preferences-desktop",
@@ -187,8 +192,11 @@ NPlayer::NPlayer()
 										tr("Exit"), this);
 	connect(exitAction, SIGNAL(triggered()), this, SLOT(quit()));
 
-	NAction *fileDialogAction = new NAction(style()->standardIcon(QStyle::SP_DialogOpenButton), tr("Open Files..."), this);
-	connect(fileDialogAction, SIGNAL(triggered()), this, SLOT(showFileDialog()));
+	NAction *openFileDialogAction = new NAction(style()->standardIcon(QStyle::SP_DialogOpenButton), tr("Add Files..."), this);
+	connect(openFileDialogAction, SIGNAL(triggered()), this, SLOT(showOpenFileDialog()));
+
+	NAction *savePlaylistDialogAction = new NAction(style()->standardIcon(QStyle::SP_DialogSaveButton), tr("Save Playlist..."), this);
+	connect(savePlaylistDialogAction, SIGNAL(triggered()), this, SLOT(showSavePlaylistDialog()));
 
 	NAction *aboutAction = new NAction(QIcon::fromTheme("help-about",
 										style()->standardIcon(QStyle::SP_MessageBoxQuestion)),
@@ -262,7 +270,8 @@ NPlayer::NPlayer()
 	m_contextMenu = new QMenu(m_mainWindow);
 	m_mainWindow->setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(m_mainWindow, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(showContextMenu(QPoint)));
-	m_contextMenu->addAction(fileDialogAction);
+	m_contextMenu->addAction(openFileDialogAction);
+	m_contextMenu->addAction(savePlaylistDialogAction);
 
 	QMenu *windowSubMenu = new QMenu("Window", m_mainWindow);
 	windowSubMenu->addAction(whilePlayingOnTopAction);
@@ -310,6 +319,8 @@ NPlayer::NPlayer()
 
 	m_settings->initShortcuts(this);
 	m_settings->loadShortcuts();
+	foreach (NAction *action, m_settings->shortcuts())
+		m_mainWindow->addAction(action);
 
 	loadSettings();
 
@@ -669,16 +680,19 @@ void NPlayer::showAboutMessageBox()
 	dialog->exec();
 }
 
-void NPlayer::showFileDialog()
+void NPlayer::showOpenFileDialog()
 {
+	QString music = "*.mp3 *.ogg *.flac *.wma *.wav "
+					"*.aac *.m4a *.spx *.mp4 "
+					"*.xm *.s3m *.it *.mod";
+	QString playlist = "*.m3u *.m3u8";
+
 	QStringList files = QFileDialog::getOpenFileNames(m_mainWindow, tr("Open Files"),
-						m_settings->value("LastDirectory").toString(),
-						"Music files ("
-							"*.mp3 *.ogg *.flac *.wma *.wav "
-							"*.aac *.m4a *.spx *.mp4 "
-							"*.xm *.s3m *.it *.mod"
-						");;"
-						"All files (*)");
+														m_settings->value("LastDirectory").toString(),
+														"All supported (" + music + " " + playlist + ");;"
+														"Music files (" + music + ");;"
+														"Playlist files (" + playlist + ");;"
+														"All files (*)");
 
 	if (files.isEmpty())
 		return;
@@ -690,6 +704,24 @@ void NPlayer::showFileDialog()
 	m_playlistWidget->appendMediaList(files);
 	if (isEmpty)
 		m_playlistWidget->activateFirst();
+}
+
+void NPlayer::showSavePlaylistDialog()
+{
+	QString file = QFileDialog::getSaveFileName(this, tr("Save File"),
+												m_settings->value("LastDirectory").toString(),
+												"M3U Playlist (*.m3u)");
+
+	if (file.isEmpty())
+		return;
+
+	QString lastDir = QFileInfo(file).path();
+	m_settings->setValue("LastDirectory", lastDir);
+
+	if (!file.endsWith(".m3u"))
+		file.append(".m3u");
+
+	m_playlistWidget->writePlaylist(file);
 }
 
 void NPlayer::showContextMenu(QPoint pos)
